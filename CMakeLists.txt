@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.11 FATAL_ERROR) 
+cmake_minimum_required(VERSION 3.11 FATAL_ERROR)
 project(PPOCore3D)
 
 #############################################
-################## OPTIONS ##################
+############## BUILD OPTIONS ################
 #############################################
 set(CAFFE2_USE_CUDNN 1)
 set(CAFFE2_USE_CUSPARSELT 1)
@@ -10,7 +10,7 @@ set(CAFFE2_USE_CUDSS 1)
 set(CAFFE2_USE_CUFILE 1)
 
 #############################################
-################## TORCH DIR ################
+############### TORCH SETUP #################
 #############################################
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(Torch_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libtorch_d/share/cmake/Torch")
@@ -18,11 +18,10 @@ else()
     set(Torch_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libtorch_r/share/cmake/Torch")
 endif()
 
-# Torch
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/torch.cmake")
 
 #############################################
-################## CONTENT ##################
+############## SOURCE FILES #################
 #############################################
 set(RobotSimulator_SRCS
     include/minitaur/RobotSimulator.cpp
@@ -38,13 +37,15 @@ set(RobotSimulator_SRCS
     include/bullet/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp
 )
 
-include_directories(e)
 add_executable(PPOCore3D src/main.cpp src/ppo.cpp src/env.cpp ${RobotSimulator_SRCS})
-target_link_libraries(PPOCore3D "${TORCH_LIBRARIES}")
 set_property(TARGET PPOCore3D PROPERTY CXX_STANDARD 17)
+target_link_libraries(PPOCore3D "${TORCH_LIBRARIES}")
 
+#############################################
+############## INCLUDE PATHS ################
+#############################################
 include_directories(
-	${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include/minitaur
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet/SharedMemory
@@ -53,7 +54,9 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet/ThirdPartyLibs/clsocket/src
 )
 
-# Use dynamic CRT (/MD or /MDd)
+#############################################
+######## FORCE USE OF DYNAMIC CRT ###########
+#############################################
 foreach(flag_var CMAKE_C_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELEASE CMAKE_C_FLAGS_DEBUG CMAKE_CXX_FLAGS_DEBUG)
     if(${flag_var} MATCHES "/MT")
         string(REGEX REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
@@ -63,26 +66,30 @@ foreach(flag_var CMAKE_C_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELEASE CMAKE_C_FLAGS_DEB
     endif()
 endforeach()
 
-# Definitions
+#############################################
+################ DEFINITIONS ################
+#############################################
 add_definitions(-DGLEW_STATIC)
 if(BUILD_CLSOCKET)
     add_definitions(-DBT_ENABLE_CLSOCKET)
     add_definitions(${OSDEF})
 endif()
 
-
-# Set Bullet Physics library directories
+#############################################
+############ LIBRARY DIRECTORIES ############
+#############################################
 set(LIB_DIR_DEBUG "${CMAKE_CURRENT_LIST_DIR}/lib/Debug")
 set(LIB_DIR_RELEASE "${CMAKE_CURRENT_LIST_DIR}/lib/Release")
 
-# Link directories based on build type
 target_link_directories(PPOCore3D
     PRIVATE
     $<$<CONFIG:Debug>:${LIB_DIR_DEBUG}>
     $<$<CONFIG:Release>:${LIB_DIR_RELEASE}>
 )
 
-# Bullet library lists
+#############################################
+############## BULLET LIBS ##################
+#############################################
 set(BULLET_LIBS_DEBUG
     BulletRobotics_DEBUG
     BulletExampleBrowserLib_DEBUG
@@ -117,7 +124,6 @@ set(BULLET_LIBS_RELEASE
     Winmm
 )
 
-# Link libraries
 target_link_libraries(PPOCore3D
     $<$<CONFIG:Debug>:${BULLET_LIBS_DEBUG}>
     $<$<CONFIG:Release>:${BULLET_LIBS_RELEASE}>
@@ -126,7 +132,7 @@ target_link_libraries(PPOCore3D
 )
 
 #############################################
-############ COPY ONLY DLL FILES ############
+############ COPY TORCH DLLs ################
 #############################################
 set(LIBTORCH_DLL_DIR_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/../libtorch_d/lib")
 set(LIBTORCH_DLL_DIR_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../libtorch_r/lib")
@@ -134,21 +140,17 @@ set(LIBTORCH_DLL_DIR_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../libtorch_r/lib")
 file(GLOB TORCH_DLLS_DEBUG "${LIBTORCH_DLL_DIR_DEBUG}/*.dll" "${LIB_DIR_DEBUG}/*.dll")
 file(GLOB TORCH_DLLS_RELEASE "${LIBTORCH_DLL_DIR_RELEASE}/*.dll" "${LIB_DIR_RELEASE}/*.dll")
 
-# Define absolute destination folders
 set(DEST_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/build/Debug")
 set(DEST_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/build/Release")
 
-# Create destination directories
 file(MAKE_DIRECTORY "${DEST_DEBUG}")
 file(MAKE_DIRECTORY "${DEST_RELEASE}")
 
-# Copy Debug DLLs and print the command
 foreach(dll ${TORCH_DLLS_DEBUG})
     message(STATUS "Copying if newer ${dll} to ${DEST_DEBUG}")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${DEST_DEBUG}")
 endforeach()
 
-# Copy Release DLLs and print the command
 foreach(dll ${TORCH_DLLS_RELEASE})
     message(STATUS "Copying if newer ${dll} to ${DEST_RELEASE}")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${DEST_RELEASE}")
