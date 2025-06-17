@@ -1,56 +1,73 @@
 ﻿#include "env.h"
 
-AgentTargetEnv::AgentTargetEnv(torch::Device& device) : mDevice(device), dist_x(x_min, x_max), dist_y(y_min, y_max) {
-    std::random_device rd;
-    rng = std::mt19937(rd());
+RobotEnv::RobotEnv(torch::Device& device) : mDevice(device) {
+    sim = new b3RobotSimulatorClientAPI();
+    bool isConnected = sim->connect(eCONNECT_GUI);
+
+    if (!isConnected)
+    {
+        printf("Cannot connect\n");
+        return;
+    };
+    sim->configureDebugVisualizer(COV_ENABLE_GUI, 0);
+    sim->setTimeOut(10);
+    //syncBodies is only needed when connecting to an existing physics server that has already some bodies
+    sim->syncBodies();
+    btScalar fixedTimeStep = 1. / 240.;
+
+    sim->setTimeStep(fixedTimeStep);
+
+    btQuaternion q = sim->getQuaternionFromEuler(btVector3(0.1, 0.2, 0.3));
+    btVector3 rpy;
+    rpy = sim->getEulerFromQuaternion(q);
+
+    sim->setGravity(btVector3(0, 0, -9.8));
+
+    sim->loadURDF("plane.urdf");
+
+    MinitaurSetup minitaur;
+    int minitaurUid = minitaur.setupMinitaur(sim, btVector3(0, 0, .3));
+
+    b3Clock clock;
+    double startTime = clock.getTimeInSeconds();
+    double simWallClockSeconds = 20.;
+
+    sim->setRealTimeSimulation(false);
+    int vidLogId = -1;
+    int minitaurLogId = -1;
+    int rotateCamera = 0;
 }
 
-Env::Space AgentTargetEnv::observation_space() const{
+Env::Space RobotEnv::observation_space() const{
     // Observations: agent_x, agent_y, target_x, target_y
     return Space{ {4} };
 }
 
-Env::Space AgentTargetEnv::action_space() const{
+Env::Space RobotEnv::action_space() const{
     // Actions: continuous 2 floats, each in [-1, 1]
     return Space{ {2} };
 }
 
-std::pair<torch::Tensor, std::unordered_map<std::string, float>> AgentTargetEnv::reset(){
-    agent_pos = { dist_x(rng), dist_y(rng) };
-    target_pos = { dist_x(rng), dist_y(rng) };
+std::pair<torch::Tensor, std::unordered_map<std::string, float>> RobotEnv::reset(){
+
+
     return { get_observation(), {} };
 }
 
-std::tuple<torch::Tensor, float, bool, bool, std::unordered_map<std::string, float>> AgentTargetEnv::step(const torch::Tensor& action){
-    // Clip action to [-1, 1]
-    float dx = std::clamp(action[0].item<float>(), -1.0f, 1.0f) * max_step;
-    float dy = std::clamp(action[1].item<float>(), -1.0f, 1.0f) * max_step;
-
-    // Update agent position and clip to bounds
-    agent_pos[0] = std::clamp(agent_pos[0] + dx, x_min, x_max);
-    agent_pos[1] = std::clamp(agent_pos[1] + dy, y_min, y_max);
-
-    // Distance to target
-    float dist_x = agent_pos[0] - target_pos[0];
-    float dist_y = agent_pos[1] - target_pos[1];
-    float distance = std::sqrt(dist_x * dist_x + dist_y * dist_y);
+std::tuple<torch::Tensor, float, bool, bool, std::unordered_map<std::string, float>> RobotEnv::step(const torch::Tensor& action){
+    sim->stepSimulation();
 
     // Reward and done conditions
-    float reward = -0.01f * distance;
+    float reward = 1.0f;
     bool done = false;
-
-    if (distance < 1.0f) {
-        reward += 1.0f;
-        done = true;
-    }
 
     return { get_observation(), reward, done, false, {} };
 }
 
-void AgentTargetEnv::render(){
-    printf("Agent: (%.2f, %.2f), Target: (%.2f, %.2f)\n", agent_pos[0], agent_pos[1], target_pos[0], target_pos[1]);
+void RobotEnv::render(){    
+
 }
 
-torch::Tensor AgentTargetEnv::get_observation() const {
-    return torch::tensor({ agent_pos[0], agent_pos[1], target_pos[0], target_pos[1] }).to(mDevice);
+torch::Tensor RobotEnv::get_observation() const {
+    return torch::tensor({ 0.0f,0.0f,0.0f,0.0f }).to(mDevice);
 }

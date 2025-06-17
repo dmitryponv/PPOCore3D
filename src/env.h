@@ -12,6 +12,7 @@
 #include <chrono>
 #include <unordered_map>
 
+#include "RobotSimulator.h"
 
 // Abstract environment interface
 class Env {
@@ -36,9 +37,9 @@ public:
 };
 
 
-class AgentTargetEnv : public Env {
+class RobotEnv : public Env {
 public:
-    AgentTargetEnv(torch::Device& device);
+    RobotEnv(torch::Device& device);
 
     Space observation_space() const override;
 
@@ -52,16 +53,7 @@ public:
 
 private:
     torch::Device& mDevice;
-    float x_min = 0.0f, x_max = 10.0f;
-    float y_min = 0.0f, y_max = 10.0f;
-    float max_step = 0.5f;  // max movement per step in each axis
-
-    std::vector<float> agent_pos;  // {x, y}
-    std::vector<float> target_pos; // {x, y}
-
-    std::mt19937 rng;
-    std::uniform_real_distribution<float> dist_x;
-    std::uniform_real_distribution<float> dist_y;
+    b3RobotSimulatorClientAPI* sim;
 
     torch::Tensor get_observation() const;
 };

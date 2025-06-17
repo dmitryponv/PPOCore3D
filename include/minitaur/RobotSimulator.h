@@ -1,4 +1,4 @@
-
+#pragma once
 #define B3_USE_ROBOTSIM_GUI
 
 #ifdef B3_USE_ROBOTSIM_GUI
