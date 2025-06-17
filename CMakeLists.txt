@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11 FATAL_ERROR) 
-project(PPOmin)
+project(PPOCore3D)
 
 #############################################
 ################## OPTIONS ##################
@@ -24,10 +24,108 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/torch.cmake")
 #############################################
 ################## CONTENT ##################
 #############################################
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-add_executable(PPOmin src/main.cpp src/ppo.cpp src/env.cpp)
-target_link_libraries(PPOmin "${TORCH_LIBRARIES}")
-set_property(TARGET PPOmin PROPERTY CXX_STANDARD 17)
+set(RobotSimulator_SRCS
+    include/minitaur/RobotSimulator.cpp
+    include/minitaur/b3RobotSimulatorClientAPI.cpp
+    include/minitaur/MinitaurSetup.cpp
+    include/bullet/ExampleBrowser/InProcessExampleBrowser.cpp
+    include/bullet/SharedMemory/GraphicsServerExample.cpp
+    include/bullet/SharedMemory/GraphicsClientExample.cpp
+    include/bullet/SharedMemory/RemoteGUIHelper.cpp
+    include/bullet/SharedMemory/RemoteGUIHelperTCP.cpp
+    include/bullet/SharedMemory/PhysicsServerExample.cpp
+    include/bullet/SharedMemory/PhysicsServerExampleBullet2.cpp
+    include/bullet/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp
+)
+
+include_directories(e)
+add_executable(PPOCore3D src/main.cpp src/ppo.cpp src/env.cpp ${RobotSimulator_SRCS})
+target_link_libraries(PPOCore3D "${TORCH_LIBRARIES}")
+set_property(TARGET PPOCore3D PROPERTY CXX_STANDARD 17)
+
+include_directories(
+	${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/minitaur
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet/SharedMemory
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet/ThirdPartyLibs
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet/ThirdPartyLibs/enet/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet/ThirdPartyLibs/clsocket/src
+)
+
+# Use dynamic CRT (/MD or /MDd)
+foreach(flag_var CMAKE_C_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELEASE CMAKE_C_FLAGS_DEBUG CMAKE_CXX_FLAGS_DEBUG)
+    if(${flag_var} MATCHES "/MT")
+        string(REGEX REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
+    endif()
+    if(${flag_var} MATCHES "/MTd")
+        string(REGEX REPLACE "/MTd" "/MDd" ${flag_var} "${${flag_var}}")
+    endif()
+endforeach()
+
+# Definitions
+add_definitions(-DGLEW_STATIC)
+if(BUILD_CLSOCKET)
+    add_definitions(-DBT_ENABLE_CLSOCKET)
+    add_definitions(${OSDEF})
+endif()
+
+
+# Set Bullet Physics library directories
+set(BULLET_LIB_BASE "${CMAKE_CURRENT_LIST_DIR}/lib")
+set(BULLET_LIB_DIR_DEBUG "${BULLET_LIB_BASE}/Debug")
+set(BULLET_LIB_DIR_RELEASE "${BULLET_LIB_BASE}/Release")
+
+
+# Link directories based on build type
+target_link_directories(PPOCore3D
+    PRIVATE
+    $<$<CONFIG:Debug>:${BULLET_LIB_DIR_DEBUG}>
+    $<$<CONFIG:Release>:${BULLET_LIB_DIR_RELEASE}>
+)
+
+# Bullet library lists
+set(BULLET_LIBS_DEBUG
+    BulletRobotics_DEBUG
+    BulletExampleBrowserLib_DEBUG
+    BulletFileLoader_DEBUG
+    BulletWorldImporter_DEBUG
+    BulletSoftBody_DEBUG
+    BulletDynamics_DEBUG
+    BulletCollision_DEBUG
+    BulletInverseDynamicsUtils_DEBUG
+    BulletInverseDynamics_DEBUG
+    LinearMath_DEBUG
+    OpenGLWindow_DEBUG
+    gwen_DEBUG
+    Bullet3Common_DEBUG
+    Winmm
+)
+
+set(BULLET_LIBS_RELEASE
+    BulletRobotics
+    BulletExampleBrowserLib
+    BulletFileLoader
+    BulletWorldImporter
+    BulletSoftBody
+    BulletDynamics
+    BulletCollision
+    BulletInverseDynamicsUtils
+    BulletInverseDynamics
+    LinearMath
+    OpenGLWindow
+    gwen
+    Bullet3Common
+    Winmm
+)
+
+# Link libraries
+target_link_libraries(PPOCore3D
+    $<$<CONFIG:Debug>:${BULLET_LIBS_DEBUG}>
+    $<$<CONFIG:Release>:${BULLET_LIBS_RELEASE}>
+    ws2_32
+    opengl32
+)
 
 #############################################
 ############ COPY ONLY DLL FILES ############

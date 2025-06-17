@@ -14,6 +14,8 @@
 
 #include "PPO.h"
 
+#include "minitaur/RobotSimulator.h"
+
 void train(
     Env& env,
     const std::unordered_map<std::string, float>& hyperparameters,
@@ -38,6 +40,10 @@ void eval(Env& env, torch::Device& device, const std::string& actor_model) {
 }
 
 int main(int argc, char* argv[]) {
+
+    RobotSimulator robot_simulator;
+    robot_simulator.run_simulator();
+
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
         {"timesteps_per_batch", 2048},

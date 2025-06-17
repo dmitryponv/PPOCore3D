@@ -1,18 +1,4 @@
-﻿#include <torch/torch.h>
-#include <iostream>
-#include <cuda_runtime.h>
-#include <random>
-#include <filesystem>
-#include <fstream>
-#include <memory>
-#include <vector>
-#include <cmath>
-#include <string>
-#include <tuple>
-#include <chrono>
-#include <unordered_map>
-
-#include "env.h"
+﻿#include "env.h"
 
 AgentTargetEnv::AgentTargetEnv(torch::Device& device) : mDevice(device), dist_x(x_min, x_max), dist_y(y_min, y_max) {
     std::random_device rd;
