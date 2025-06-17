@@ -48,12 +48,12 @@ file(MAKE_DIRECTORY "${DEST_RELEASE}")
 
 # Copy Debug DLLs and print the command
 foreach(dll ${TORCH_DLLS_DEBUG})
-    message(STATUS "Copying ${dll} to ${DEST_DEBUG}")
+    message(STATUS "Copying if newer ${dll} to ${DEST_DEBUG}")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${DEST_DEBUG}")
 endforeach()
 
 # Copy Release DLLs and print the command
 foreach(dll ${TORCH_DLLS_RELEASE})
-    message(STATUS "Copying ${dll} to ${DEST_RELEASE}")
+    message(STATUS "Copying if newer ${dll} to ${DEST_RELEASE}")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${DEST_RELEASE}")
 endforeach()
