@@ -72,16 +72,14 @@ endif()
 
 
 # Set Bullet Physics library directories
-set(BULLET_LIB_BASE "${CMAKE_CURRENT_LIST_DIR}/lib")
-set(BULLET_LIB_DIR_DEBUG "${BULLET_LIB_BASE}/Debug")
-set(BULLET_LIB_DIR_RELEASE "${BULLET_LIB_BASE}/Release")
-
+set(LIB_DIR_DEBUG "${CMAKE_CURRENT_LIST_DIR}/lib/Debug")
+set(LIB_DIR_RELEASE "${CMAKE_CURRENT_LIST_DIR}/lib/Release")
 
 # Link directories based on build type
 target_link_directories(PPOCore3D
     PRIVATE
-    $<$<CONFIG:Debug>:${BULLET_LIB_DIR_DEBUG}>
-    $<$<CONFIG:Release>:${BULLET_LIB_DIR_RELEASE}>
+    $<$<CONFIG:Debug>:${LIB_DIR_DEBUG}>
+    $<$<CONFIG:Release>:${LIB_DIR_RELEASE}>
 )
 
 # Bullet library lists
@@ -133,8 +131,8 @@ target_link_libraries(PPOCore3D
 set(LIBTORCH_DLL_DIR_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/../libtorch_d/lib")
 set(LIBTORCH_DLL_DIR_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../libtorch_r/lib")
 
-file(GLOB TORCH_DLLS_DEBUG "${LIBTORCH_DLL_DIR_DEBUG}/*.dll")
-file(GLOB TORCH_DLLS_RELEASE "${LIBTORCH_DLL_DIR_RELEASE}/*.dll")
+file(GLOB TORCH_DLLS_DEBUG "${LIBTORCH_DLL_DIR_DEBUG}/*.dll" "${LIB_DIR_DEBUG}/*.dll")
+file(GLOB TORCH_DLLS_RELEASE "${LIBTORCH_DLL_DIR_RELEASE}/*.dll" "${LIB_DIR_RELEASE}/*.dll")
 
 # Define absolute destination folders
 set(DEST_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/build/Debug")
