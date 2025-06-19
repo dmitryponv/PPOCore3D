@@ -110,7 +110,7 @@ torch::Tensor MultivariateNormal::sample(const std::vector<int64_t>& sample_shap
 	auto eps = torch::randn(shape, loc.options());
 	auto L = _unbroadcasted_scale_tril;
 	auto result = loc + torch::matmul(L, eps.unsqueeze(-1)).squeeze(-1);
-	return result;
+	return torch::tanh(result);
 }
 
 torch::Tensor MultivariateNormal::log_prob(const torch::Tensor& value) const {
@@ -441,7 +441,7 @@ torch::Tensor PPO::compute_rtgs(const vector<vector<float>>& batch_rewards) {
 	return torch::tensor(batch_rtgs, torch::kFloat).to(device);
 }
 
-pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs_tensor) {
+std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs_tensor) {
 	// Query the actor network for a mean action
 	torch::Tensor mean = actor->forward(obs_tensor);
 
@@ -449,17 +449,21 @@ pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs_tens
 	auto dist = MultivariateNormal(mean, cov_mat);
 
 	// Sample an action from the distribution
-	torch::Tensor action_tensor = dist.sample();
+	torch::Tensor raw_action = dist.sample();
+	torch::Tensor action_tensor = torch::tanh(raw_action);
 
-	// Calculate the log probability for that action
-	torch::Tensor log_prob_tensor = dist.log_prob(action_tensor);
+	// Compute the log probability with correction for tanh
+	torch::Tensor log_prob = dist.log_prob(raw_action);
+	torch::Tensor correction = 2.0 * (torch::log(torch::tensor(2.0)) - raw_action - torch::softplus(-2.0 * raw_action));
+	log_prob = log_prob - correction.sum(-1);
 
 	print_tensor_inline("obs_tensor", obs_tensor);
 	print_tensor_inline("mean", mean);
+	print_tensor_inline("raw_action", raw_action);
 	print_tensor_inline("action_tensor", action_tensor);
-	print_tensor_inline("log_prob_tensor", log_prob_tensor);
+	print_tensor_inline("log_prob_tensor", log_prob);
 
-	return { action_tensor, log_prob_tensor.detach() };
+	return { action_tensor, log_prob.detach() };
 }
 
 pair<torch::Tensor, torch::Tensor> PPO::evaluate(const torch::Tensor& batch_obs, const torch::Tensor& batch_acts) {
@@ -613,7 +617,7 @@ void PPO_Eval::eval_policy(bool render) {
 	}
 }
 
-pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor& obs_tensor) {
+std::pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor& obs_tensor) {
 	// Query the actor network for a mean action
 	torch::Tensor mean = actor->forward(obs_tensor);
 
@@ -621,17 +625,21 @@ pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor& obs
 	auto dist = MultivariateNormal(mean, cov_mat);
 
 	// Sample an action from the distribution
-	torch::Tensor action_tensor = dist.sample();
+	torch::Tensor raw_action = dist.sample();
+	torch::Tensor action_tensor = torch::tanh(raw_action);
 
-	// Calculate the log probability for that action
-	torch::Tensor log_prob_tensor = dist.log_prob(action_tensor);
+	// Compute the log probability with correction for tanh
+	torch::Tensor log_prob = dist.log_prob(raw_action);
+	torch::Tensor correction = 2.0 * (torch::log(torch::tensor(2.0)) - raw_action - torch::softplus(-2.0 * raw_action));
+	log_prob = log_prob - correction.sum(-1);
 
 	print_tensor_inline("obs_tensor", obs_tensor);
 	print_tensor_inline("mean", mean);
+	print_tensor_inline("raw_action", raw_action);
 	print_tensor_inline("action_tensor", action_tensor);
-	print_tensor_inline("log_prob_tensor", log_prob_tensor);
+	print_tensor_inline("log_prob_tensor", log_prob);
 
-	return { action_tensor, log_prob_tensor.detach() };
+	return { action_tensor, log_prob.detach() };
 }
 
 void PPO_Eval::log_eval(float ep_len, float ep_ret, int ep_num) {

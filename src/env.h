@@ -54,6 +54,8 @@ public:
 private:
     torch::Device& mDevice;
     b3RobotSimulatorClientAPI* sim;
-
+    int minitaurUid = -1;
+    int numJoints = 0;
+    std::vector<int> validTorqueJoints;
     torch::Tensor get_observation() const;
 };

@@ -43,8 +43,8 @@ int main(int argc, char* argv[]) {
 
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
-        {"timesteps_per_batch", 2048},
-        {"max_timesteps_per_episode", 200},
+        {"timesteps_per_batch", 10000},
+        {"max_timesteps_per_episode", 5000},
         {"gamma", 0.99},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
@@ -88,6 +88,7 @@ int main(int argc, char* argv[]) {
     try {
         RobotEnv env(device);
         if (true) {
+            //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
             train(env, hyperparameters, device, "", "");
         }
         else {
