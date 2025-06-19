@@ -2,22 +2,8 @@
 
 using namespace std;
 
-void print_tensor_inline(const std::string& name, const torch::Tensor& t, int precision = 4, int max_elements = 10) {
-	//torch::Tensor flat = t.flatten().cpu();
-	//std::cout << name << "=tensor([";
-	//int64_t size = flat.size(0);
-	//std::cout << std::fixed << std::setprecision(precision);
-	//for (int64_t i = 0; i < std::min<int64_t>(size, max_elements / 2); ++i) {
-	//    std::cout << flat[i].item<double>() << ", ";
-	//}
-	//if (size > max_elements) {
-	//    std::cout << "...";
-	//    for (int64_t i = size - max_elements / 2; i < size; ++i) {
-	//        std::cout << ", " << flat[i].item<double>();
-	//    }
-	//}
-	//std::cout << "])" << std::endl << std::endl;
-}
+
+
 
 
 MultivariateNormal::MultivariateNormal(const torch::Tensor& loc,
@@ -110,7 +96,7 @@ torch::Tensor MultivariateNormal::sample(const std::vector<int64_t>& sample_shap
 	auto eps = torch::randn(shape, loc.options());
 	auto L = _unbroadcasted_scale_tril;
 	auto result = loc + torch::matmul(L, eps.unsqueeze(-1)).squeeze(-1);
-	return torch::tanh(result);
+	return result;
 }
 
 torch::Tensor MultivariateNormal::log_prob(const torch::Tensor& value) const {
@@ -441,30 +427,7 @@ torch::Tensor PPO::compute_rtgs(const vector<vector<float>>& batch_rewards) {
 	return torch::tensor(batch_rtgs, torch::kFloat).to(device);
 }
 
-std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs_tensor) {
-	// Query the actor network for a mean action
-	torch::Tensor mean = actor->forward(obs_tensor);
 
-	// Create a distribution with the mean action and std from the covariance matrix
-	auto dist = MultivariateNormal(mean, cov_mat);
-
-	// Sample an action from the distribution
-	torch::Tensor raw_action = dist.sample();
-	torch::Tensor action_tensor = torch::tanh(raw_action);
-
-	// Compute the log probability with correction for tanh
-	torch::Tensor log_prob = dist.log_prob(raw_action);
-	torch::Tensor correction = 2.0 * (torch::log(torch::tensor(2.0)) - raw_action - torch::softplus(-2.0 * raw_action));
-	log_prob = log_prob - correction.sum(-1);
-
-	print_tensor_inline("obs_tensor", obs_tensor);
-	print_tensor_inline("mean", mean);
-	print_tensor_inline("raw_action", raw_action);
-	print_tensor_inline("action_tensor", action_tensor);
-	print_tensor_inline("log_prob_tensor", log_prob);
-
-	return { action_tensor, log_prob.detach() };
-}
 
 pair<torch::Tensor, torch::Tensor> PPO::evaluate(const torch::Tensor& batch_obs, const torch::Tensor& batch_acts) {
 	//Estimate the values of each observation, and the log probs of
@@ -521,7 +484,7 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 
 			// Calculate action and make a step in the env.
 			// Note that rew is short for reward.
-			auto [action_tensor, log_prob] = get_action(obs_tensor);
+			auto [action_tensor, log_prob] = get_action(obs_tensor, actor, cov_mat);
 			auto [next_obs, rew, terminated, truncated, __] = env.step(action_tensor);
 			print_tensor_inline("log_prob", log_prob);
 
@@ -602,7 +565,7 @@ void PPO_Eval::eval_policy(bool render) {
 			if (render) {
 				env.render();
 			}
-			auto [action_tensor, log_prob] = get_action(obs_tensor);
+			auto [action_tensor, log_prob] = get_action(obs_tensor, actor, cov_mat);
 			auto [next_obs, rew, terminated, truncated, __] = env.step(action_tensor);
 			done = terminated || truncated;
 
@@ -615,31 +578,6 @@ void PPO_Eval::eval_policy(bool render) {
 		log_eval(ep_len, ep_ret, ep_num);
 		ep_num++;
 	}
-}
-
-std::pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor& obs_tensor) {
-	// Query the actor network for a mean action
-	torch::Tensor mean = actor->forward(obs_tensor);
-
-	// Create a distribution with the mean action and std from the covariance matrix
-	auto dist = MultivariateNormal(mean, cov_mat);
-
-	// Sample an action from the distribution
-	torch::Tensor raw_action = dist.sample();
-	torch::Tensor action_tensor = torch::tanh(raw_action);
-
-	// Compute the log probability with correction for tanh
-	torch::Tensor log_prob = dist.log_prob(raw_action);
-	torch::Tensor correction = 2.0 * (torch::log(torch::tensor(2.0)) - raw_action - torch::softplus(-2.0 * raw_action));
-	log_prob = log_prob - correction.sum(-1);
-
-	print_tensor_inline("obs_tensor", obs_tensor);
-	print_tensor_inline("mean", mean);
-	print_tensor_inline("raw_action", raw_action);
-	print_tensor_inline("action_tensor", action_tensor);
-	print_tensor_inline("log_prob_tensor", log_prob);
-
-	return { action_tensor, log_prob.detach() };
 }
 
 void PPO_Eval::log_eval(float ep_len, float ep_ret, int ep_num) {
@@ -655,3 +593,4 @@ void PPO_Eval::log_eval(float ep_len, float ep_ret, int ep_num) {
 	std::cout << std::endl;
 	std::cout.flush();
 }
+
