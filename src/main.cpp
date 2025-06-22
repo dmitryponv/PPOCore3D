@@ -28,15 +28,15 @@ void train(
     PPO model(env, hyperparameters, device, actor_model, critic_model);  // Construct PPO with environment and hyperparameters
 
     // Train PPO model for a large number of timesteps
-    model.learn(200000000);
+    model.learn(2000000000);
 }
 
-void eval(Env& env, torch::Device& device, const std::string& actor_model) {
+void eval(Env& env, torch::Device& device, const std::string& actor_model, float fixedTimeStepS = 0.0) {
     std::cout << "Testing " << actor_model << std::endl;
 
     PPO_Eval model(env, device, actor_model);
 
-    model.eval_policy();
+    model.eval_policy(false, fixedTimeStepS);
 }
 
 int main(int argc, char* argv[]) {
@@ -86,13 +86,14 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        PendulumEnv env(device);
-        if (true) {
+        AgentTargetEnv env(device);
+        if (false) {
             //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
             train(env, hyperparameters, device, "", "");
         }
         else {
-            eval(env, device, "./models/ppo_actor.pt"); // only load the actor model
+            float fixedTimeStepS = 1. / 240.;
+            eval(env, device, "./models/ppo_actor.pt", fixedTimeStepS); // only load the actor model
         }
     }
     catch (const std::exception& e) {

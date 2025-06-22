@@ -65,7 +65,7 @@ std::tuple<torch::Tensor, float, bool, bool, std::unordered_map<std::string, flo
     for (size_t i = 0; i < validTorqueJoints.size(); ++i) {
         int j = validTorqueJoints[i];
         float torque = action[i].item<float>() * 10.0f;
-
+        torque = std::clamp(torque, -5.0f, 5.0f);
         b3JointInfo jointInfo;
         sim->getJointInfo(minitaurUid, j, &jointInfo);
         btVector3 axis(jointInfo.m_jointAxis[0], jointInfo.m_jointAxis[1], jointInfo.m_jointAxis[2]);

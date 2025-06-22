@@ -3,7 +3,27 @@
 using namespace std;
 
 
+//#define DEBUG_TENSNORS
+//#define LIMIT_ACTION_SPACE
 
+void print_tensor_inline(const std::string& name, const torch::Tensor& t, int precision = 4, int max_elements = 10) {
+#ifdef DEBUG_TENSNORS
+	torch::Tensor flat = t.flatten().cpu();
+	std::cout << name << "=tensor([";
+	int64_t size = flat.size(0);
+	std::cout << std::fixed << std::setprecision(precision);
+	for (int64_t i = 0; i < std::min<int64_t>(size, max_elements / 2); ++i) {
+	    std::cout << flat[i].item<double>() << ", ";
+	}
+	if (size > max_elements) {
+	    std::cout << "...";
+	    for (int64_t i = size - max_elements / 2; i < size; ++i) {
+	        std::cout << ", " << flat[i].item<double>();
+	    }
+	}
+	std::cout << "])" << std::endl << std::endl;
+#endif
+}
 
 
 MultivariateNormal::MultivariateNormal(const torch::Tensor& loc,
@@ -160,6 +180,12 @@ torch::Tensor FeedForwardNNImpl::forward(torch::Tensor obs) {
 PPO::PPO(Env& env, const std::unordered_map<std::string, float>& hyperparameters, torch::Device& device, string actor_model, string critic_model)
 	: env(env), device(device) {
 
+	obs_dim = env.observation_space().shape[0];
+	act_dim = env.action_space().shape[0];
+
+	actor = FeedForwardNN(obs_dim, act_dim, device);
+	critic = FeedForwardNN(obs_dim, 1, device);
+
 	if (!actor_model.empty() && !critic_model.empty()) {
 		cout << "Loading in " << actor_model << " and " << critic_model << "..." << endl;
 		torch::load(actor, actor_model);
@@ -176,11 +202,6 @@ PPO::PPO(Env& env, const std::unordered_map<std::string, float>& hyperparameters
 
 	_init_hyperparameters(hyperparameters);
 
-	obs_dim = env.observation_space().shape[0];
-	act_dim = env.action_space().shape[0];
-
-	actor = FeedForwardNN(obs_dim, act_dim, device);
-	critic = FeedForwardNN(obs_dim, 1, device);
 
 	actor_optim = std::make_unique<torch::optim::Adam>(actor->parameters(), torch::optim::AdamOptions(lr));
 	critic_optim = std::make_unique<torch::optim::Adam>(critic->parameters(), torch::optim::AdamOptions(lr));
@@ -427,6 +448,116 @@ torch::Tensor PPO::compute_rtgs(const vector<vector<float>>& batch_rewards) {
 	return torch::tensor(batch_rtgs, torch::kFloat).to(device);
 }
 
+#ifdef  LIMIT_ACTION_SPACE
+std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs_tensor) {
+	// Query the actor network for a mean action
+	torch::Tensor mean = actor->forward(obs_tensor);
+
+	// Create a distribution with the mean and covariance
+	auto dist = MultivariateNormal(mean, cov_mat);
+
+	// Sample an action (pre-squash)
+	torch::Tensor raw_action = dist.sample();
+
+	// Squash the action to [-1, 1] range
+	torch::Tensor action_tensor = torch::tanh(raw_action);
+
+	// Log prob of the unsquashed action
+	torch::Tensor log_prob = dist.log_prob(raw_action);
+
+	// Tanh correction: subtract log(det(Jacobian)) of the transformation
+	// For tanh: log(1 - tanh(x)^2) = log(1 - action^2)
+	torch::Tensor correction = torch::log(1 - action_tensor.pow(2) + 1e-6).sum(-1);
+
+	// Adjusted log_prob
+	log_prob = log_prob - correction;
+
+	// Optional: print tensors
+	print_tensor_inline("obs_tensor", obs_tensor);
+	print_tensor_inline("mean", mean);
+	print_tensor_inline("raw_action", raw_action);
+	print_tensor_inline("action_tensor", action_tensor);
+	print_tensor_inline("corrected_log_prob", log_prob);
+
+	return { action_tensor, log_prob.detach() };
+}
+std::pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor& obs_tensor) {
+	// Query the actor network for a mean action
+	torch::Tensor mean = actor->forward(obs_tensor);
+
+	// Create a distribution with the mean and covariance
+	auto dist = MultivariateNormal(mean, cov_mat);
+
+	// Sample an action (pre-squash)
+	torch::Tensor raw_action = dist.sample();
+
+	// Squash the action to [-1, 1] range
+	torch::Tensor action_tensor = torch::tanh(raw_action);
+
+	// Log prob of the unsquashed action
+	torch::Tensor log_prob = dist.log_prob(raw_action);
+
+	// Tanh correction: subtract log(det(Jacobian)) of the transformation
+	// For tanh: log(1 - tanh(x)^2) = log(1 - action^2)
+	torch::Tensor correction = torch::log(1 - action_tensor.pow(2) + 1e-6).sum(-1);
+
+	// Adjusted log_prob
+	log_prob = log_prob - correction;
+
+	// Optional: print tensors
+	print_tensor_inline("obs_tensor", obs_tensor);
+	print_tensor_inline("mean", mean);
+	print_tensor_inline("raw_action", raw_action);
+	print_tensor_inline("action_tensor", action_tensor);
+	print_tensor_inline("corrected_log_prob", log_prob);
+
+	return { action_tensor, log_prob.detach() };
+}
+#else
+std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs_tensor) {
+	// Query the actor network for a mean action
+	torch::Tensor mean = actor->forward(obs_tensor);
+
+	// Create a distribution with the mean action and std from the covariance matrix
+	auto dist = MultivariateNormal(mean, cov_mat);
+
+	// Sample an action from the distribution
+	torch::Tensor action_tensor = dist.sample();// torch::tanh(dist.sample());
+
+	// Compute the log probability with correction for tanh
+	torch::Tensor log_prob = dist.log_prob(action_tensor);
+
+	print_tensor_inline("obs_tensor", obs_tensor);
+	print_tensor_inline("mean", mean);
+	print_tensor_inline("action_tensor", action_tensor);
+	print_tensor_inline("log_prob_tensor", log_prob);
+
+	return { action_tensor, log_prob.detach() };
+}
+std::pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor& obs_tensor) {
+	// Query the actor network for a mean action
+	torch::Tensor mean = actor->forward(obs_tensor);
+
+	// Create a distribution with the mean action and std from the covariance matrix
+	auto dist = MultivariateNormal(mean, cov_mat);
+
+	// Sample an action from the distribution
+	torch::Tensor action_tensor = dist.sample();// torch::tanh(dist.sample());
+
+	// Compute the log probability with correction for tanh
+	torch::Tensor log_prob = dist.log_prob(action_tensor);
+
+	print_tensor_inline("obs_tensor", obs_tensor);
+	print_tensor_inline("mean", mean);
+	print_tensor_inline("action_tensor", action_tensor);
+	print_tensor_inline("log_prob_tensor", log_prob);
+
+	return { action_tensor, log_prob.detach() };
+}
+#endif //  LIMIT_ACTION_SPACE
+
+
+
 
 
 pair<torch::Tensor, torch::Tensor> PPO::evaluate(const torch::Tensor& batch_obs, const torch::Tensor& batch_acts) {
@@ -484,7 +615,7 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 
 			// Calculate action and make a step in the env.
 			// Note that rew is short for reward.
-			auto [action_tensor, log_prob] = get_action(obs_tensor, actor, cov_mat);
+			auto [action_tensor, log_prob] = get_action(obs_tensor);
 			auto [next_obs, rew, terminated, truncated, __] = env.step(action_tensor);
 			print_tensor_inline("log_prob", log_prob);
 
@@ -548,7 +679,7 @@ PPO_Eval::PPO_Eval(Env& env, torch::Device& device, string actor_model)
 	cov_mat = torch::full({ act_dim }, 0.5).to(device).diag();
 }
 
-void PPO_Eval::eval_policy(bool render) {
+void PPO_Eval::eval_policy(bool render, float fixedTimeStepS) {
 	int ep_num = 0;
 
 	while (true) {
@@ -565,12 +696,14 @@ void PPO_Eval::eval_policy(bool render) {
 			if (render) {
 				env.render();
 			}
-			auto [action_tensor, log_prob] = get_action(obs_tensor, actor, cov_mat);
+			auto [action_tensor, log_prob] = get_action(obs_tensor);
 			auto [next_obs, rew, terminated, truncated, __] = env.step(action_tensor);
 			done = terminated || truncated;
 
 			ep_ret += rew;
 			obs_tensor = next_obs;
+			if(fixedTimeStepS > 0.001f)
+				b3Clock::usleep(1000. * 1000. * fixedTimeStepS);
 		}
 
 		ep_len = static_cast<float>(t);
@@ -593,4 +726,3 @@ void PPO_Eval::log_eval(float ep_len, float ep_ret, int ep_num) {
 	std::cout << std::endl;
 	std::cout.flush();
 }
-

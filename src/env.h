@@ -41,9 +41,12 @@ using namespace std;
 
 class AgentTargetEnv : public Env {
 private:
-    float x_min = 0.0f, x_max = 10.0f;
-    float y_min = 0.0f, y_max = 10.0f;
-    float max_step = 0.5f;  // max movement per step in each axis
+    float x_min = -10.0f, x_max = 10.0f;
+    float y_min = -10.0f, y_max = 10.0f;
+    float max_force = 10.0f;
+
+    int agent_id = -1;
+    int target_id = -1;
 
     vector<float> agent_pos;  // {x, y}
     vector<float> target_pos; // {x, y}
@@ -57,44 +60,82 @@ public:
         : mDevice(device), dist_x(x_min, x_max), dist_y(y_min, y_max) {
         random_device rd;
         rng = mt19937(rd());
+
+        sim = new b3RobotSimulatorClientAPI();
+        bool isConnected = sim->connect(eCONNECT_GUI);
+
+        if (!isConnected) {
+            printf("Cannot connect\n");
+            return;
+        }
+
+        sim->configureDebugVisualizer(COV_ENABLE_GUI, 0);
+        sim->setTimeOut(10);
+        sim->syncBodies();
+        sim->setTimeStep(1. / 240.);
+        sim->setGravity(btVector3(0, 0, -9.8));
+        sim->loadURDF("plane.urdf");
+
+        agent_id = sim->loadURDF("cube.urdf");
+        target_id = sim->loadURDF("cube.urdf");
+
+        //sim->changeDynamics(agent_id, -1, 1.0, 0.0, 0.0);
+        //sim->changeDynamics(target_id, -1, 1.0, 0.0, 0.0);
     }
 
     Space observation_space() const override {
-        // Observations: agent_x, agent_y, target_x, target_y
         return Space{ {4} };
     }
 
     Space action_space() const override {
-        // Actions: continuous 2 floats, each in [-1, 1]
         return Space{ {2} };
     }
 
     pair<torch::Tensor, unordered_map<string, float>> reset() override {
         agent_pos = { dist_x(rng), dist_y(rng) };
         target_pos = { dist_x(rng), dist_y(rng) };
+
+        sim->resetBasePositionAndOrientation(agent_id, btVector3(agent_pos[0], agent_pos[1], 0.5f), btQuaternion(0, 0, 0, 1));
+        sim->resetBaseVelocity(agent_id, btVector3(0, 0, 0), btVector3(0, 0, 0));
+
+        sim->resetBasePositionAndOrientation(target_id, btVector3(target_pos[0], target_pos[1], 0.5f), btQuaternion(0, 0, 0, 1));
+        sim->resetBaseVelocity(target_id, btVector3(0, 0, 0), btVector3(0, 0, 0));
+
         return { get_observation(), {} };
     }
 
     tuple<torch::Tensor, float, bool, bool, unordered_map<string, float>> step(const torch::Tensor& action) override {
-        // Clip action to [-1, 1]
-        float dx = std::clamp(action[0].item<float>(), -1.0f, 1.0f) * max_step;
-        float dy = std::clamp(action[1].item<float>(), -1.0f, 1.0f) * max_step;
+        float dx = std::clamp(action[0].item<float>(), -1.0f, 1.0f);
+        float dy = std::clamp(action[1].item<float>(), -1.0f, 1.0f);
 
-        // Update agent position and clip to bounds
-        agent_pos[0] = std::clamp(agent_pos[0] + dx, x_min, x_max);
-        agent_pos[1] = std::clamp(agent_pos[1] + dy, y_min, y_max);
+        btVector3 agent_base_pos, target_base_pos;
+        btQuaternion agent_q, target_q;
 
-        // Distance to target
+        sim->getBasePositionAndOrientation(agent_id, agent_base_pos, agent_q);
+        sim->getBasePositionAndOrientation(target_id, target_base_pos, target_q);
+
+        agent_base_pos.setX(agent_base_pos.getX() + dx);
+        agent_base_pos.setY(agent_base_pos.getY() + dy);
+
+        sim->resetBasePositionAndOrientation(agent_id, agent_base_pos, agent_q);
+
+        agent_pos = { agent_base_pos.getX(), agent_base_pos.getY(), agent_base_pos.getZ() };
+        target_pos = { target_base_pos.getX(), target_base_pos.getY(), target_base_pos.getZ() };
+
         float dist_x = agent_pos[0] - target_pos[0];
         float dist_y = agent_pos[1] - target_pos[1];
         float distance = std::sqrt(dist_x * dist_x + dist_y * dist_y);
 
-        // Reward and done conditions
         float reward = -0.01f * distance;
         bool done = false;
 
-        if (distance < 1.0f) {
-            reward += 1.0f;
+        if (distance < 2.0f) {
+            reward += 5.0f;
+            done = true;
+        }
+
+        if (agent_pos[2] < 0.0f || target_pos[2] < 0.0f) {
+            reward -= 5.0f;
             done = true;
         }
 
@@ -107,11 +148,13 @@ public:
 
 private:
     torch::Device& mDevice;
+    b3RobotSimulatorClientAPI* sim;
 
     torch::Tensor get_observation() const {
         return torch::tensor({ agent_pos[0], agent_pos[1], target_pos[0], target_pos[1] }).to(mDevice);
     }
 };
+
 
 class PendulumEnv : public Env {
 public:
