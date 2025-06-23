@@ -26,8 +26,12 @@ RobotEnv::RobotEnv(torch::Device& device) : mDevice(device) {
     for (int j = 0; j < numJoints; ++j) {
         b3JointInfo jointInfo;
         sim->getJointInfo(minitaurUid, j, &jointInfo);
+        std::string jointName(jointInfo.m_linkName);
         btVector3 axis(jointInfo.m_jointAxis[0], jointInfo.m_jointAxis[1], jointInfo.m_jointAxis[2]);
-        if (!axis.fuzzyZero()) {
+
+        if (!axis.fuzzyZero() &&
+            jointName.find("motor") != std::string::npos &&
+            jointName.find("joint") != std::string::npos) {
             validTorqueJoints.push_back(j);
         }
     }

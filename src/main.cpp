@@ -86,13 +86,13 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        AgentTargetEnv env(device);
+        RobotEnv env(device);
         if (false) {
             //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
             train(env, hyperparameters, device, "", "");
         }
         else {
-            float fixedTimeStepS = 1. / 240.;
+            float fixedTimeStepS = 1. / 5.;
             eval(env, device, "./models/ppo_actor.pt", fixedTimeStepS); // only load the actor model
         }
     }
