@@ -4,27 +4,24 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="-0.01000 0.00000 -0.12000"/>
 			<mass value="8.90746"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.21526). Off-diagonal inertias set to 0.00001. -->
+			<!-- Inertia values updated for consistency and non-zero values -->
 			<inertia ixx="0.21526" ixy="0.00001" ixz="0.00001" iyy="0.21526" iyz="0.00001" izz="0.21526"/>
 		</inertial>
 		<collision>
 			<origin rpy="-1.57080 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 			<geometry>
-				<!-- Original: capsule length="0.14000" radius="0.07000" -->
 				<box size="0.14000 0.14000 0.14000"/>
 			</geometry>
 		</collision>
 		<collision>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.19000"/>
 			<geometry>
-				<!-- Original: sphere radius="0.09000" -->
 				<box size="0.18000 0.18000 0.18000"/>
 			</geometry>
 		</collision>
 		<collision>
 			<origin rpy="-1.57080 0.00000 0.00000" xyz="-0.01000 0.00000 -0.12000"/>
 			<geometry>
-				<!-- Original: capsule length="0.12000" radius="0.06000" -->
 				<box size="0.12000 0.12000 0.12000"/>
 			</geometry>
 		</collision>
@@ -32,16 +29,14 @@
 	<link name="link1_2">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_3">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -49,13 +44,11 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 			<mass value="2.26195"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.01357). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.01357" ixy="0.00001" ixz="0.00001" iyy="0.01357" iyz="0.00001" izz="0.01357"/>
 		</inertial>
 		<collision>
 			<origin rpy="-1.57080 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 			<geometry>
-				<!-- Original: capsule length="0.12000" radius="0.06000" -->
 				<box size="0.12000 0.12000 0.12000"/>
 			</geometry>
 		</collision>
@@ -63,8 +56,7 @@
 	<link name="link1_5">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -72,13 +64,11 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="-0.02000 0.00000 0.00000"/>
 			<mass value="6.61619"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.07432). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.07432" ixy="0.00001" ixz="0.00001" iyy="0.07432" iyz="0.00001" izz="0.07432"/>
 		</inertial>
 		<collision>
 			<origin rpy="-1.57080 0.00000 0.00000" xyz="-0.02000 0.00000 0.00000"/>
 			<geometry>
-				<!-- Original: capsule length="0.14000" radius="0.09000" -->
 				<box size="0.18000 0.18000 0.14000"/>
 			</geometry>
 		</collision>
@@ -86,24 +76,21 @@
 	<link name="link1_7">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_8">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_9">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -111,13 +98,11 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00500 -0.17000"/>
 			<mass value="4.75175"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.09212). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.09212" ixy="0.00001" ixz="0.00001" iyy="0.09212" iyz="0.00001" izz="0.09212"/>
 		</inertial>
 		<collision>
 			<origin rpy="-3.11219 -0.00000 0.00000" xyz="0.00000 0.00500 -0.17000"/>
 			<geometry>
-				<!-- Original: capsule length="0.34015" radius="0.06000" -->
 				<box size="0.12000 0.12000 0.34015"/>
 			</geometry>
 		</collision>
@@ -125,8 +110,7 @@
 	<link name="link1_11">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -134,13 +118,11 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.15000"/>
 			<mass value="2.75570"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.03858). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.03858" ixy="0.00001" ixz="0.00001" iyy="0.03858" iyz="0.00001" izz="0.03858"/>
 		</inertial>
 		<collision>
 			<origin rpy="3.14159 -0.00000 3.14159" xyz="0.00000 0.00000 -0.15000"/>
 			<geometry>
-				<!-- Original: capsule length="0.30000" radius="0.04900" -->
 				<box size="0.09800 0.09800 0.30000"/>
 			</geometry>
 		</collision>
@@ -148,16 +130,14 @@
 	<link name="link1_13">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_14">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -165,20 +145,17 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.03500 0.01000 0.00000"/>
 			<mass value="1.13114"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.00828). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.00828" ixy="0.00001" ixz="0.00001" iyy="0.00828" iyz="0.00001" izz="0.00828"/>
 		</inertial>
 		<collision>
 			<origin rpy="1.57080 1.47585 1.47585" xyz="0.03500 -0.03000 0.00000"/>
 			<geometry>
-				<!-- Original: capsule length="0.21095" radius="0.02700" -->
 				<box size="0.05400 0.05400 0.21095"/>
 			</geometry>
 		</collision>
 		<collision>
 			<origin rpy="-1.57080 1.47585 -1.47585" xyz="0.03500 0.01000 0.00000"/>
 			<geometry>
-				<!-- Original: capsule length="0.21095" radius="0.02700" -->
 				<box size="0.05400 0.05400 0.21095"/>
 			</geometry>
 		</collision>
@@ -186,24 +163,21 @@
 	<link name="link1_16">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_17">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_18">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -211,13 +185,11 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 -0.00500 -0.17000"/>
 			<mass value="4.75175"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.09212). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.09212" ixy="0.00001" ixz="0.00001" iyy="0.09212" iyz="0.00001" izz="0.09212"/>
 		</inertial>
 		<collision>
 			<origin rpy="3.11219 -0.00000 0.00000" xyz="0.00000 -0.00500 -0.17000"/>
 			<geometry>
-				<!-- Original: capsule length="0.34015" radius="0.06000" -->
 				<box size="0.12000 0.12000 0.34015"/>
 			</geometry>
 		</collision>
@@ -225,8 +197,7 @@
 	<link name="link1_20">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -234,13 +205,11 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.15000"/>
 			<mass value="2.75570"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.03858). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.03858" ixy="0.00001" ixz="0.00001" iyy="0.03858" iyz="0.00001" izz="0.03858"/>
 		</inertial>
 		<collision>
 			<origin rpy="3.14159 -0.00000 3.14159" xyz="0.00000 0.00000 -0.15000"/>
 			<geometry>
-				<!-- Original: capsule length="0.30000" radius="0.04900" -->
 				<box size="0.09800 0.09800 0.30000"/>
 			</geometry>
 		</collision>
@@ -248,16 +217,14 @@
 	<link name="link1_22">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_23">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -265,20 +232,17 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.03500 -0.01000 0.00000"/>
 			<mass value="1.13114"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.00828). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.00828" ixy="0.00001" ixz="0.00001" iyy="0.00828" iyz="0.00001" izz="0.00828"/>
 		</inertial>
 		<collision>
 			<origin rpy="-1.57080 1.47585 -1.47585" xyz="0.03500 0.03000 0.00000"/>
 			<geometry>
-				<!-- Original: capsule length="0.21095" radius="0.02700" -->
 				<box size="0.05400 0.05400 0.21095"/>
 			</geometry>
 		</collision>
 		<collision>
 			<origin rpy="1.57080 1.47585 1.47585" xyz="0.03500 -0.01000 0.00000"/>
 			<geometry>
-				<!-- Original: capsule length="0.21095" radius="0.02700" -->
 				<box size="0.05400 0.05400 0.21095"/>
 			</geometry>
 		</collision>
@@ -286,16 +250,14 @@
 	<link name="link1_25">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_26">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -303,13 +265,11 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.08000 -0.08000 -0.08000"/>
 			<mass value="1.66108"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.02368). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.02368" ixy="0.00001" ixz="0.00001" iyy="0.02368" iyz="0.00001" izz="0.02368"/>
 		</inertial>
 		<collision>
 			<origin rpy="2.35619 0.61548 1.30900" xyz="0.08000 -0.08000 -0.08000"/>
 			<geometry>
-				<!-- Original: capsule length="0.27713" radius="0.04000" -->
 				<box size="0.08000 0.08000 0.27713"/>
 			</geometry>
 		</collision>
@@ -317,8 +277,7 @@
 	<link name="link1_28">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -326,20 +285,17 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 			<mass value="1.22954"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.01419). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.01419" ixy="0.00001" ixz="0.00001" iyy="0.01419" iyz="0.00001" izz="0.01419"/>
 		</inertial>
 		<collision>
 			<origin rpy="-0.78540 0.61548 -0.26180" xyz="0.09000 0.09000 0.09000"/>
 			<geometry>
-				<!-- Original: capsule length="0.27713" radius="0.03100" -->
 				<box size="0.06200 0.06200 0.27713"/>
 			</geometry>
 		</collision>
 		<collision>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.18000 0.18000 0.18000"/>
 			<geometry>
-				<!-- Original: sphere radius="0.04000" -->
 				<box size="0.08000 0.08000 0.08000"/>
 			</geometry>
 		</collision>
@@ -347,16 +303,14 @@
 	<link name="link1_30">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
 	<link name="link1_31">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -364,13 +318,11 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.08000 0.08000 -0.08000"/>
 			<mass value="1.66108"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.02368). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.02368" ixy="0.00001" ixz="0.00001" iyy="0.02368" iyz="0.00001" izz="0.02368"/>
 		</inertial>
 		<collision>
 			<origin rpy="-2.35619 0.61548 -1.30900" xyz="0.08000 0.08000 -0.08000"/>
 			<geometry>
-				<!-- Original: capsule length="0.27713" radius="0.04000" -->
 				<box size="0.08000 0.08000 0.27713"/>
 			</geometry>
 		</collision>
@@ -378,8 +330,7 @@
 	<link name="link1_33">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-			<mass value="0.00001"/> <!-- Mass changed from 0.00000 to a small non-zero value -->
-			<!-- All inertia values set to a small non-zero value and made consistent -->
+			<mass value="0.00001"/>
 			<inertia ixx="0.00001" ixy="0.00001" ixz="0.00001" iyy="0.00001" iyz="0.00001" izz="0.00001"/>
 		</inertial>
 	</link>
@@ -387,49 +338,48 @@
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 			<mass value="1.22954"/>
-			<!-- Inertia values updated: ixx, iyy, izz are set to the max of their original values (0.01419). Off-diagonal inertias set to 0.00001. -->
 			<inertia ixx="0.01419" ixy="0.00001" ixz="0.00001" iyy="0.01419" iyz="0.00001" izz="0.01419"/>
 		</inertial>
 		<collision>
 			<origin rpy="0.78540 0.61548 0.26180" xyz="0.09000 -0.09000 0.09000"/>
 			<geometry>
-				<!-- Original: capsule length="0.27713" radius="0.03100" -->
 				<box size="0.06200 0.06200 0.27713"/>
 			</geometry>
 		</collision>
 		<collision>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.18000 -0.18000 0.18000"/>
 			<geometry>
-				<!-- Original: sphere radius="0.04000" -->
 				<box size="0.08000 0.08000 0.08000"/>
 			</geometry>
 		</collision>
 	</link>
 
 	<!-- Joint modifications for human-like movement with specific revolute axes and limits -->
-	<joint name="abdomen_z" type="fixed">
+	<!-- Abdomen Joints: Allowing Pitch (bend forward/backward) and Yaw (rotate around pelvis) -->
+	<joint name="abdomen_z" type="revolute"> <!-- Abdomen Yaw (rotation around Z) -->
 		<parent link="torso"/>
 		<child link="link1_2"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00400 0.00000" xyz="-0.01026 0.00000 -0.19500"/>
 		<axis xyz="0.00000 0.00000 1.00000"/>
+		<limit lower="-0.5" upper="0.5" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="abdomen_y" type="revolute"> <!-- Abdomen pitch (forward/backward bend) -->
+	<joint name="abdomen_y" type="revolute"> <!-- Abdomen Pitch (bend forward/backward along Y) -->
 		<parent link="link1_2"/>
 		<child link="link1_3"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 1.00000 0.00000"/>
-		<limit lower="-0.5" upper="0.5" effort="100.0" velocity="10.0"/>
+		<limit lower="-0.3" upper="0.7" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="jointfix_7_3" type="fixed">
+	<joint name="jointfix_7_3" type="fixed"> <!-- Fixed connection to lwaist -->
 		<parent link="link1_3"/>
 		<child link="lwaist"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.06500"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="abdomen_x" type="fixed">
+	<joint name="abdomen_x" type="fixed"> <!-- Abdomen Roll (fixed) -->
 		<parent link="lwaist"/>
 		<child link="link1_5"/>
 		<dynamics damping="1.0" friction="0.0001"/>
@@ -444,28 +394,29 @@
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
 
-	<joint name="right_hip_x" type="revolute"> <!-- Right Hip Abduction/Adduction -->
+	<!-- Right Leg Joints: Hip (2 revolute), Knee (1 revolute), Ankle (1 revolute) -->
+	<joint name="right_hip_x" type="revolute"> <!-- Right Hip Abduction/Adduction (around X) -->
 		<parent link="pelvis"/>
 		<child link="link1_7"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 -0.10000 -0.04000"/>
 		<axis xyz="1.00000 0.00000 0.00000"/>
-		<limit lower="-0.8" upper="0.8" effort="100.0" velocity="10.0"/>
+		<limit lower="-0.5" upper="1.0" effort="100.0" velocity="10.0"/> <!-- Asymmetric limits: more abduction (positive) than adduction (negative) -->
 	</joint>
-	<joint name="right_hip_z" type="revolute"> <!-- Right Hip Flexion/Extension -->
+	<joint name="right_hip_z" type="fixed"> <!-- Right Hip Internal/External Rotation (fixed) -->
 		<parent link="link1_7"/>
 		<child link="link1_8"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 0.00000 1.00000"/>
-		<limit lower="-1.5" upper="0.5" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="right_hip_y" type="fixed"> <!-- Fixed to allow 2 DoF hip -->
+	<joint name="right_hip_y" type="revolute"> <!-- Right Hip Flexion/Extension (around Y) -->
 		<parent link="link1_8"/>
 		<child link="link1_9"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 1.00000 0.00000"/>
+		<limit lower="-0.4" upper="2.0" effort="100.0" velocity="10.0"/> <!-- Standard human hip range -->
 	</joint>
 	<joint name="jointfix_2_9" type="fixed">
 		<parent link="link1_9"/>
@@ -474,13 +425,13 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="right_knee" type="revolute"> <!-- Right Knee Flexion/Extension -->
+	<joint name="right_knee" type="revolute"> <!-- Right Knee Flexion/Extension (around Y) -->
 		<parent link="right_thigh"/>
 		<child link="link1_11"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.01000 -0.38300"/>
-		<axis xyz="0.00000 -1.00000 0.00000"/>
-		<limit lower="0.0" upper="2.0" effort="100.0" velocity="10.0"/>
+		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Positive Y-axis for forward bending -->
+		<limit lower="0.0" upper="2.5" effort="100.0" velocity="10.0"/> <!-- Bends forward from 0 (straight) -->
 	</joint>
 	<joint name="jointfix_1_11" type="fixed">
 		<parent link="link1_11"/>
@@ -489,7 +440,7 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.02000"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="right_ankle_y" type="revolute"> <!-- Right Ankle Plantarflexion/Dorsiflexion -->
+	<joint name="right_ankle_y" type="revolute"> <!-- Right Ankle Plantarflexion/Dorsiflexion (around Y) -->
 		<parent link="right_shin"/>
 		<child link="link1_13"/>
 		<dynamics damping="1.0" friction="0.0001"/>
@@ -497,7 +448,7 @@
 		<axis xyz="0.00000 1.00000 0.00000"/>
 		<limit lower="-0.7" upper="0.7" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="right_ankle_x" type="fixed"> <!-- Fixed to allow 1 DoF ankle -->
+	<joint name="right_ankle_x" type="fixed"> <!-- Right Ankle Inversion/Eversion (fixed) -->
 		<parent link="link1_13"/>
 		<child link="link1_14"/>
 		<dynamics damping="1.0" friction="0.0001"/>
@@ -512,28 +463,29 @@
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
 
-	<joint name="left_hip_x" type="revolute"> <!-- Left Hip Abduction/Adduction -->
+	<!-- Left Leg Joints: Hip (2 revolute), Knee (1 revolute), Ankle (1 revolute) -->
+	<joint name="left_hip_x" type="revolute"> <!-- Left Hip Abduction/Adduction (around X) -->
 		<parent link="pelvis"/>
 		<child link="link1_16"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.10000 -0.04000"/>
 		<axis xyz="-1.00000 0.00000 0.00000"/>
-		<limit lower="-0.8" upper="0.8" effort="100.0" velocity="10.0"/>
+		<limit lower="-1.0" upper="0.5" effort="100.0" velocity="10.0"/> <!-- Asymmetric limits: more abduction (negative) than adduction (positive) due to axis -->
 	</joint>
-	<joint name="left_hip_z" type="revolute"> <!-- Left Hip Flexion/Extension -->
+	<joint name="left_hip_z" type="fixed"> <!-- Left Hip Internal/External Rotation (fixed) -->
 		<parent link="link1_16"/>
 		<child link="link1_17"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 0.00000 -1.00000"/>
-		<limit lower="-1.5" upper="0.5" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="left_hip_y" type="fixed"> <!-- Fixed to allow 2 DoF hip -->
+	<joint name="left_hip_y" type="revolute"> <!-- Left Hip Flexion/Extension (around Y) -->
 		<parent link="link1_17"/>
 		<child link="link1_18"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 1.00000 0.00000"/>
+		<limit lower="-0.4" upper="2.0" effort="100.0" velocity="10.0"/>
 	</joint>
 	<joint name="jointfix_5_18" type="fixed">
 		<parent link="link1_18"/>
@@ -542,13 +494,13 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="left_knee" type="revolute"> <!-- Left Knee Flexion/Extension -->
+	<joint name="left_knee" type="revolute"> <!-- Left Knee Flexion/Extension (around Y) -->
 		<parent link="left_thigh"/>
 		<child link="link1_20"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 -0.01000 -0.38300"/>
-		<axis xyz="0.00000 -1.00000 0.00000"/>
-		<limit lower="0.0" upper="2.0" effort="100.0" velocity="10.0"/>
+		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Positive Y-axis for forward bending -->
+		<limit lower="0.0" upper="2.5" effort="100.0" velocity="10.0"/> <!-- Bends forward from 0 (straight) -->
 	</joint>
 	<joint name="jointfix_4_20" type="fixed">
 		<parent link="link1_20"/>
@@ -557,7 +509,7 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.02000"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="left_ankle_y" type="revolute"> <!-- Left Ankle Plantarflexion/Dorsiflexion -->
+	<joint name="left_ankle_y" type="revolute"> <!-- Left Ankle Plantarflexion/Dorsiflexion (around Y) -->
 		<parent link="left_shin"/>
 		<child link="link1_22"/>
 		<dynamics damping="1.0" friction="0.0001"/>
@@ -565,7 +517,7 @@
 		<axis xyz="0.00000 1.00000 0.00000"/>
 		<limit lower="-0.7" upper="0.7" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="left_ankle_x" type="fixed"> <!-- Fixed to allow 1 DoF ankle -->
+	<joint name="left_ankle_x" type="fixed"> <!-- Left Ankle Inversion/Eversion (fixed) -->
 		<parent link="link1_22"/>
 		<child link="link1_23"/>
 		<dynamics damping="1.0" friction="0.0001"/>
@@ -580,20 +532,21 @@
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
 
-	<joint name="right_shoulder1" type="revolute"> <!-- Right Shoulder Flexion/Extension (simplified to Y-axis) -->
+	<!-- Right Arm Joints: Shoulder (2 revolute), Elbow (1 revolute) -->
+	<joint name="right_shoulder1" type="revolute"> <!-- Right Shoulder Flexion/Extension (around Y) -->
 		<parent link="torso"/>
 		<child link="link1_25"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 -0.17000 0.06000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Changed from complex axis -->
+		<axis xyz="0.00000 1.00000 0.00000"/>
 		<limit lower="-2.0" upper="2.0" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="right_shoulder2" type="revolute"> <!-- Right Shoulder Abduction/Adduction (simplified to X-axis) -->
+	<joint name="right_shoulder2" type="revolute"> <!-- Right Shoulder Abduction/Adduction (around X) -->
 		<parent link="link1_25"/>
 		<child link="link1_26"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-		<axis xyz="1.00000 0.00000 0.00000"/> <!-- Changed from complex axis -->
+		<axis xyz="1.00000 0.00000 0.00000"/>
 		<limit lower="-1.0" upper="1.0" effort="100.0" velocity="10.0"/>
 	</joint>
 	<joint name="jointfix_9_26" type="fixed">
@@ -603,12 +556,12 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="right_elbow" type="revolute"> <!-- Right Elbow Flexion/Extension -->
+	<joint name="right_elbow" type="revolute"> <!-- Right Elbow Flexion/Extension (around Y) -->
 		<parent link="right_upper_arm"/>
 		<child link="link1_28"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.18000 -0.18000 -0.18000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Simplified to Y-axis for standard elbow -->
+		<axis xyz="0.00000 1.00000 0.00000"/>
 		<limit lower="0.0" upper="2.5" effort="100.0" velocity="10.0"/>
 	</joint>
 	<joint name="jointfix_8_28" type="fixed">
@@ -619,20 +572,21 @@
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
 
-	<joint name="left_shoulder1" type="revolute"> <!-- Left Shoulder Flexion/Extension (simplified to Y-axis) -->
+	<!-- Left Arm Joints: Shoulder (2 revolute), Elbow (1 revolute) -->
+	<joint name="left_shoulder1" type="revolute"> <!-- Left Shoulder Flexion/Extension (around Y) -->
 		<parent link="torso"/>
 		<child link="link1_30"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.17000 0.06000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Changed from complex axis -->
+		<axis xyz="0.00000 1.00000 0.00000"/>
 		<limit lower="-2.0" upper="2.0" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="left_shoulder2" type="revolute"> <!-- Left Shoulder Abduction/Adduction (simplified to X-axis) -->
+	<joint name="left_shoulder2" type="revolute"> <!-- Left Shoulder Abduction/Adduction (around X) -->
 		<parent link="link1_30"/>
 		<child link="link1_31"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
-		<axis xyz="1.00000 0.00000 0.00000"/> <!-- Changed from complex axis -->
+		<axis xyz="1.00000 0.00000 0.00000"/>
 		<limit lower="-1.0" upper="1.0" effort="100.0" velocity="10.0"/>
 	</joint>
 	<joint name="jointfix_11_31" type="fixed">
@@ -642,12 +596,12 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="left_elbow" type="revolute"> <!-- Left Elbow Flexion/Extension -->
+	<joint name="left_elbow" type="revolute"> <!-- Left Elbow Flexion/Extension (around Y) -->
 		<parent link="left_upper_arm"/>
 		<child link="link1_33"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.18000 0.18000 -0.18000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Simplified to Y-axis for standard elbow -->
+		<axis xyz="0.00000 1.00000 0.00000"/>
 		<limit lower="0.0" upper="2.5" effort="100.0" velocity="10.0"/>
 	</joint>
 	<joint name="jointfix_10_33" type="fixed">
