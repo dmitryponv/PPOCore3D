@@ -14,47 +14,27 @@
 
 #include "env.h"
 
-class MultivariateNormal {
+class NormalMultivariate {
+    torch::Tensor mean, stddev, var, log_std;
+    torch::Device& device;
 public:
-    torch::Tensor loc;
-    torch::Tensor _unbroadcasted_scale_tril;
-    torch::Tensor scale_tril_;
-    torch::Tensor covariance_matrix_;
-    torch::Tensor precision_matrix_;
-    std::vector<int64_t> batch_shape;
-    std::vector<int64_t> event_shape;
+    NormalMultivariate(const torch::Tensor& mean, const torch::Tensor& std, torch::Device& device)
+        : mean(mean), stddev(std), var(std* std), log_std(std.log()), device(device) {
+    }
 
-    MultivariateNormal(const torch::Tensor& loc,
-        const torch::optional<torch::Tensor>& covariance_matrix = torch::nullopt,
-        const torch::optional<torch::Tensor>& precision_matrix = torch::nullopt,
-        const torch::optional<torch::Tensor>& scale_tril = torch::nullopt);
+    torch::Tensor sample() {
+        auto eps = torch::randn_like(mean).to(device);
+        return this->mean + eps * this->stddev;
+    }
 
-    torch::Tensor scale_tril() const;
-
-    torch::Tensor covariance_matrix() const;
-
-    torch::Tensor precision_matrix() const;
-
-    torch::Tensor mean() const;
-
-    torch::Tensor mode() const;
-
-    torch::Tensor variance() const;
-
-    torch::Tensor sample(const std::vector<int64_t>& sample_shape = {}) const;
-
-    torch::Tensor log_prob(const torch::Tensor& value) const;
-
-    torch::Tensor entropy() const;
-
-private:
-    static torch::Tensor batch_mahalanobis(const torch::Tensor& L, const torch::Tensor& diff);
-
-    static std::vector<int64_t> broadcast_shapes(std::vector<int64_t> a, std::vector<int64_t> b, int a_end = 0, int b_end = 0);
+    torch::Tensor log_prob(const torch::Tensor& value) {
+        const double log_sqrt_2pi = 0.9189385332046727; // precomputed log(sqrt(2*pi))
+        return -(value - this->mean) * (value - this->mean) / (2 * this->var) - this->log_std - log_sqrt_2pi;
+    }
 };
 
 struct FeedForwardNNImpl : torch::nn::Module {
-    torch::nn::Linear layer1{ nullptr }, layer2{ nullptr }, layer3{ nullptr };
+    torch::nn::Linear layer1{ nullptr }, layer2{ nullptr }, layer3{ nullptr }, layer4{ nullptr };
 
     FeedForwardNNImpl(int in_dim, int out_dim, torch::Device& device);
 
@@ -87,8 +67,7 @@ private:
     int act_dim;
     float lr;
 
-    torch::Tensor cov_var;
-    torch::Tensor cov_mat;
+    torch::Tensor std_dev;
 
     FeedForwardNN actor = nullptr;
     FeedForwardNN critic = nullptr;
@@ -144,5 +123,5 @@ private:
     Env& env;
     int obs_dim;
     int act_dim;
-    torch::Tensor cov_mat;
+    torch::Tensor std_dev;
 };

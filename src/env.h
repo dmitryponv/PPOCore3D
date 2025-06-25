@@ -78,9 +78,6 @@ public:
 
         agent_id = sim->loadURDF("cube.urdf");
         target_id = sim->loadURDF("cube.urdf");
-
-        //sim->changeDynamics(agent_id, -1, 1.0, 0.0, 0.0);
-        //sim->changeDynamics(target_id, -1, 1.0, 0.0, 0.0);
     }
 
     Space observation_space() const override {
@@ -114,6 +111,8 @@ public:
         sim->getBasePositionAndOrientation(agent_id, agent_base_pos, agent_q);
         sim->getBasePositionAndOrientation(target_id, target_base_pos, target_q);
 
+        bool stopped = (dx == 0.0f && dy == 0.0f);
+
         agent_base_pos.setX(agent_base_pos.getX() + dx);
         agent_base_pos.setY(agent_base_pos.getY() + dy);
 
@@ -126,7 +125,7 @@ public:
         float dist_y = agent_pos[1] - target_pos[1];
         float distance = std::sqrt(dist_x * dist_x + dist_y * dist_y);
 
-        float reward = -0.01f * distance;
+        float reward = -0.01f * distance - 0.01f; // small negative reward for time
         bool done = false;
 
         if (distance < 2.0f) {
@@ -135,6 +134,17 @@ public:
         }
 
         if (agent_pos[2] < 0.0f || target_pos[2] < 0.0f) {
+            reward -= 5.0f;
+            done = true;
+        }
+
+        if (stopped) {
+            reward -= 5.0f;
+            done = true;
+        }
+
+        if (agent_pos[0] < x_min || agent_pos[0] > x_max ||
+            agent_pos[1] < y_min || agent_pos[1] > y_max) {
             reward -= 5.0f;
             done = true;
         }
@@ -154,7 +164,6 @@ private:
         return torch::tensor({ agent_pos[0], agent_pos[1], target_pos[0], target_pos[1] }).to(mDevice);
     }
 };
-
 
 class PendulumEnv : public Env {
 public:
@@ -265,4 +274,182 @@ private:
     int numJoints = 0;
     std::vector<int> validTorqueJoints;
     torch::Tensor get_observation() const;
+};
+
+class HumanoidEnv : public Env {
+private:
+    b3RobotSimulatorClientAPI* sim;
+    int humanoid_id = -1;
+    torch::Device& mDevice;
+
+public:
+    HumanoidEnv(torch::Device& device) : mDevice(device) {
+        sim = new b3RobotSimulatorClientAPI();
+        if (!sim->connect(eCONNECT_GUI)) {
+            printf("Cannot connect\n");
+            return;
+        }
+
+        sim->setGravity(btVector3(0, 0, -9.8));
+        sim->setTimeStep(1. / 240.);
+        sim->loadURDF("plane.urdf");
+        humanoid_id = sim->loadURDF("humanoid.urdf");
+        sim->setRealTimeSimulation(false);
+    }
+
+    Space observation_space() const override {
+        int num_joints = sim->getNumJoints(humanoid_id);
+        int obs_per_joint = 3 + 4 + 3 + 3; // pos + quat + linear vel + angular vel
+        return Space{ {num_joints * obs_per_joint} };
+    }
+
+    Space action_space() const override {
+        return Space{ {sim->getNumJoints(humanoid_id)} };
+    }
+
+    pair<torch::Tensor, unordered_map<string, float>> reset() override {
+        btVector3 start_pos(0, 0, 0.5);
+        btQuaternion start_ori;
+        start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
+        sim->resetBasePositionAndOrientation(humanoid_id, start_pos, start_ori);
+        sim->resetBaseVelocity(humanoid_id, btVector3(0, 0, 0), btVector3(0, 0, 0));
+        for (int j = 0; j < sim->getNumJoints(humanoid_id); ++j) {
+            sim->resetJointState(humanoid_id, j, 0.0);
+        }
+        return { get_observation(), {} };
+    }
+    
+    //tuple<torch::Tensor, float, bool, bool, unordered_map<string, float>> step(const torch::Tensor& action) override {
+    //    int num_joints = sim->getNumJoints(humanoid_id);
+    //    const float max_torque = 500.0f;
+    //    const float max_vel = 50.0f;
+    //    bool done = false;
+    //
+    //    std::vector<b3LinkState> link_states(num_joints);
+    //    for (int i = 0; i < num_joints; ++i) {
+    //        sim->getLinkState(humanoid_id, i, 1, 0, &link_states[i]); // enable velocity computation
+    //        sim->applyExternalTorque(humanoid_id, i, btVector3(0, 0, 0), EF_LINK_FRAME); // zero torque
+    //
+    //        btVector3 vel(
+    //            link_states[i].m_worldLinearVelocity[0],
+    //            link_states[i].m_worldLinearVelocity[1],
+    //            link_states[i].m_worldLinearVelocity[2]);
+    //
+    //        if (std::abs(vel.x()) > max_vel || std::abs(vel.y()) > max_vel || std::abs(vel.z()) > max_vel) {
+    //            done = true;
+    //        }
+    //    }
+    //
+    //    for (int j = 0; j < num_joints; ++j) {
+    //        b3JointInfo joint_info;
+    //        sim->getJointInfo(humanoid_id, j, &joint_info);
+    //        int parent_index = joint_info.m_parentIndex;
+    //
+    //        if (parent_index >= 0) {
+    //            btVector3 parent_pos(
+    //                link_states[parent_index].m_worldPosition[0],
+    //                link_states[parent_index].m_worldPosition[1],
+    //                link_states[parent_index].m_worldPosition[2]);
+    //
+    //            btVector3 child_pos(
+    //                link_states[j].m_worldPosition[0],
+    //                link_states[j].m_worldPosition[1],
+    //                link_states[j].m_worldPosition[2]);
+    //
+    //            btVector3 axis = child_pos - parent_pos;
+    //            if (axis.length2() > 1e-6f) {
+    //                axis.normalize();
+    //                float torque = std::clamp(action[j].item<float>() * max_torque, -max_torque, max_torque);
+    //                btVector3 torqueVec = axis * torque;
+    //                sim->applyExternalTorque(humanoid_id, j, torqueVec, EF_LINK_FRAME);
+    //            }
+    //        }
+    //    }
+    //
+    //    sim->stepSimulation();
+    //
+    //    b3LinkState head_state;
+    //    sim->getLinkState(humanoid_id, num_joints - 1, 0, 0, &head_state);
+    //    float reward = head_state.m_worldPosition[2];
+    //
+    //    return { get_observation(), reward, done, false, {} };
+    //}
+
+
+    tuple<torch::Tensor, float, bool, bool, unordered_map<string, float>> step(const torch::Tensor& action) override {
+        int num_joints = sim->getNumJoints(humanoid_id);
+        const float max_velocity = 10.0f;
+        bool done = false;
+
+        for (int j = 0; j < num_joints; ++j) {
+            float velocity = std::clamp(action[j].item<float>() * max_velocity, -max_velocity, max_velocity);
+            b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_VELOCITY);
+            motorArgs.m_maxTorqueValue = 100.0f;
+            motorArgs.m_targetVelocity = velocity;
+
+            sim->setJointMotorControl(humanoid_id, j, motorArgs);
+
+            b3LinkState link_state;
+            sim->getLinkState(humanoid_id, j, 1, 0, &link_state); // get velocity
+            btVector3 vel(
+                link_state.m_worldLinearVelocity[0],
+                link_state.m_worldLinearVelocity[1],
+                link_state.m_worldLinearVelocity[2]);
+
+            if (std::abs(vel.x()) > max_velocity * 10 ||
+                std::abs(vel.y()) > max_velocity * 10 ||
+                std::abs(vel.z()) > max_velocity * 10) {
+                done = true;
+            }
+        }
+
+        sim->stepSimulation();
+
+        b3LinkState head_state;
+        sim->getLinkState(humanoid_id, num_joints - 1, 0, 0, &head_state);
+
+        btVector3 head_pos(
+            head_state.m_worldPosition[0],
+            head_state.m_worldPosition[1],
+            head_state.m_worldPosition[2]);
+
+        btVector3 target_pos(0.0f, 0.0f, 2.0f);
+        float dist = (head_pos - target_pos).length();
+        float reward = (dist < 1.0f) ? (1.0f / dist) : -(dist);
+        if (dist > 4)
+            done = true;
+        return { get_observation(), reward, done, false, {} };
+    }
+
+    torch::Tensor get_observation() {
+        std::vector<float> obs;
+        int num_joints = sim->getNumJoints(humanoid_id);
+        for (int j = 0; j < num_joints; ++j) {
+            b3LinkState link_state;
+            sim->getLinkState(humanoid_id, j, 1, 0, &link_state);
+
+            obs.push_back(link_state.m_worldPosition[0]);
+            obs.push_back(link_state.m_worldPosition[1]);
+            obs.push_back(link_state.m_worldPosition[2]);
+
+            obs.push_back(link_state.m_worldOrientation[0]);
+            obs.push_back(link_state.m_worldOrientation[1]);
+            obs.push_back(link_state.m_worldOrientation[2]);
+            obs.push_back(link_state.m_worldOrientation[3]);
+
+            obs.push_back(link_state.m_worldLinearVelocity[0]);
+            obs.push_back(link_state.m_worldLinearVelocity[1]);
+            obs.push_back(link_state.m_worldLinearVelocity[2]);
+
+            obs.push_back(link_state.m_worldAngularVelocity[0]);
+            obs.push_back(link_state.m_worldAngularVelocity[1]);
+            obs.push_back(link_state.m_worldAngularVelocity[2]);
+        }
+
+        return torch::from_blob(obs.data(), { (int)obs.size() }).clone().to(mDevice);
+    }
+
+    void render() override {
+        // No-op
+    }
 };

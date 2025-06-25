@@ -86,8 +86,8 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        RobotEnv env(device);
-        if (false) {
+        AgentTargetEnv env(device);
+        if (true) {
             //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
             train(env, hyperparameters, device, "", "");
         }
@@ -98,9 +98,7 @@ int main(int argc, char* argv[]) {
     }
     catch (const std::exception& e) {
         std::cerr << "Exception occurred: " << e.what() << std::endl;
-    }
-    catch (...) {
-        std::cerr << "Unknown exception occurred." << std::endl;
+        throw;
     }
 
     return 0;
