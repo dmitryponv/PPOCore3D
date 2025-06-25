@@ -154,14 +154,15 @@ std::vector<int64_t> MultivariateNormal::broadcast_shapes(std::vector<int64_t> a
 }
 
 FeedForwardNNImpl::FeedForwardNNImpl(int in_dim, int out_dim, torch::Device& device) {
-
-	layer1 = register_module("layer1", torch::nn::Linear(in_dim, 64));
-	layer2 = register_module("layer2", torch::nn::Linear(64, 64));
-	layer3 = register_module("layer3", torch::nn::Linear(64, out_dim));
+	layer1 = register_module("layer1", torch::nn::Linear(in_dim, 256));
+	layer2 = register_module("layer2", torch::nn::Linear(256, 256));
+	layer3 = register_module("layer3", torch::nn::Linear(256, 128));
+	layer4 = register_module("layer4", torch::nn::Linear(128, out_dim));
 
 	layer1->to(device);
 	layer2->to(device);
 	layer3->to(device);
+	layer4->to(device);
 }
 
 torch::Tensor FeedForwardNNImpl::forward(torch::Tensor obs) {
@@ -169,7 +170,8 @@ torch::Tensor FeedForwardNNImpl::forward(torch::Tensor obs) {
 		//obs = obs.to(layer1->weight.device());
 		auto activation1 = torch::relu(layer1(obs));
 		auto activation2 = torch::relu(layer2(activation1));
-		return layer3(activation2);
+		auto activation3 = torch::relu(layer3(activation2));
+		return layer4(activation3);
 	}
 	catch (const std::exception& e) {
 		std::cerr << "Exception in forward: " << e.what() << std::endl;
@@ -206,8 +208,9 @@ PPO::PPO(Env& env, const std::unordered_map<std::string, float>& hyperparameters
 	actor_optim = std::make_unique<torch::optim::Adam>(actor->parameters(), torch::optim::AdamOptions(lr));
 	critic_optim = std::make_unique<torch::optim::Adam>(critic->parameters(), torch::optim::AdamOptions(lr));
 
-	cov_var = torch::full({ act_dim }, 0.5).to(device);
-	cov_mat = cov_var.diag();
+	float variance = 0.5f;
+	float std_value = std::sqrt(variance);
+	std_dev = torch::full({ act_dim }, std_value).to(device);
 
 	logger["delta_t"] = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	logger["t_so_far"] = 0;
@@ -454,7 +457,7 @@ std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs
 	torch::Tensor mean = actor->forward(obs_tensor);
 
 	// Create a distribution with the mean and covariance
-	auto dist = MultivariateNormal(mean, cov_mat);
+	auto dist = NormalMultivariate(mean, std_dev, device);
 
 	// Sample an action (pre-squash)
 	torch::Tensor raw_action = dist.sample();
@@ -486,7 +489,7 @@ std::pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor
 	torch::Tensor mean = actor->forward(obs_tensor);
 
 	// Create a distribution with the mean and covariance
-	auto dist = MultivariateNormal(mean, cov_mat);
+	auto dist = NormalMultivariate(mean, std_dev, device);
 
 	// Sample an action (pre-squash)
 	torch::Tensor raw_action = dist.sample();
@@ -519,7 +522,7 @@ std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs
 	torch::Tensor mean = actor->forward(obs_tensor);
 
 	// Create a distribution with the mean action and std from the covariance matrix
-	auto dist = MultivariateNormal(mean, cov_mat);
+	auto dist = NormalMultivariate(mean, std_dev, device);
 
 	// Sample an action from the distribution
 	torch::Tensor action_tensor = dist.sample();// torch::tanh(dist.sample());
@@ -539,7 +542,7 @@ std::pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor
 	torch::Tensor mean = actor->forward(obs_tensor);
 
 	// Create a distribution with the mean action and std from the covariance matrix
-	auto dist = MultivariateNormal(mean, cov_mat);
+	auto dist = NormalMultivariate(mean, std_dev, device);
 
 	// Sample an action from the distribution
 	torch::Tensor action_tensor = dist.sample();// torch::tanh(dist.sample());
@@ -571,7 +574,7 @@ pair<torch::Tensor, torch::Tensor> PPO::evaluate(const torch::Tensor& batch_obs,
 	// Calculate the log probabilities of batch actions using most recent actor network.
 	// This segment of code is similar to that in get_action()
 	torch::Tensor mean = actor->forward(batch_obs);
-	MultivariateNormal dist(mean, cov_mat);
+	NormalMultivariate dist(mean, std_dev, device);
 	torch::Tensor log_probs = (dist.log_prob(batch_acts));
 
 	// Return the value vector V of each observation in the batch
@@ -676,7 +679,9 @@ PPO_Eval::PPO_Eval(Env& env, torch::Device& device, string actor_model)
 
 	torch::load(actor, actor_model);
 
-	cov_mat = torch::full({ act_dim }, 0.5).to(device).diag();
+	float variance = 0.5f;
+	float std_value = std::sqrt(variance);
+	std_dev = torch::full({ act_dim }, std_value).to(device);
 }
 
 void PPO_Eval::eval_policy(bool render, float fixedTimeStepS) {

@@ -31,7 +31,7 @@ RobotEnv::RobotEnv(torch::Device& device) : mDevice(device) {
 
         if (!axis.fuzzyZero() &&
             jointName.find("motor") != std::string::npos &&
-            jointName.find("joint") != std::string::npos) {
+            jointName.find("bracket") == std::string::npos) {
             validTorqueJoints.push_back(j);
         }
     }

@@ -14,6 +14,25 @@
 
 #include "env.h"
 
+class NormalMultivariate {
+    torch::Tensor mean, stddev, var, log_std;
+    torch::Device& device;
+public:
+    NormalMultivariate(const torch::Tensor& mean, const torch::Tensor& std, torch::Device& device)
+        : mean(mean), stddev(std), var(std* std), log_std(std.log()), device(device) {
+    }
+
+    torch::Tensor sample() {
+        auto eps = torch::randn_like(mean).to(device);
+        return this->mean + eps * this->stddev;
+    }
+
+    torch::Tensor log_prob(const torch::Tensor& value) {
+        const double log_sqrt_2pi = 0.9189385332046727; // precomputed log(sqrt(2*pi))
+        return -(value - this->mean) * (value - this->mean) / (2 * this->var) - this->log_std - log_sqrt_2pi;
+    }
+};
+
 class MultivariateNormal {
 public:
     torch::Tensor loc;
@@ -54,7 +73,7 @@ private:
 };
 
 struct FeedForwardNNImpl : torch::nn::Module {
-    torch::nn::Linear layer1{ nullptr }, layer2{ nullptr }, layer3{ nullptr };
+    torch::nn::Linear layer1{ nullptr }, layer2{ nullptr }, layer3{ nullptr }, layer4{ nullptr };
 
     FeedForwardNNImpl(int in_dim, int out_dim, torch::Device& device);
 
@@ -87,8 +106,7 @@ private:
     int act_dim;
     float lr;
 
-    torch::Tensor cov_var;
-    torch::Tensor cov_mat;
+    torch::Tensor std_dev;
 
     FeedForwardNN actor = nullptr;
     FeedForwardNN critic = nullptr;
@@ -144,5 +162,5 @@ private:
     Env& env;
     int obs_dim;
     int act_dim;
-    torch::Tensor cov_mat;
+    torch::Tensor std_dev;
 };
