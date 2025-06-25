@@ -293,7 +293,15 @@ public:
         sim->setGravity(btVector3(0, 0, -9.8));
         sim->setTimeStep(1. / 240.);
         sim->loadURDF("plane.urdf");
-        humanoid_id = sim->loadURDF("humanoid.urdf");
+        
+        b3RobotSimulatorLoadUrdfFileArgs args;
+        args.m_startPosition = { 0.0f, 0.0f, 1.0f };
+        args.m_startOrientation = { 0.0f, 0.0f, 0.0f, 1.0f };  // identity quaternion
+        args.m_useMultiBody = true;
+        //args.m_forceOverrideFixedBase = true;
+        args.m_flags = 0;
+        humanoid_id = sim->loadURDF("humanoid.urdf", args);
+
         sim->setRealTimeSimulation(false);
     }
 
@@ -375,17 +383,31 @@ public:
     //    return { get_observation(), reward, done, false, {} };
     //}
 
-
     tuple<torch::Tensor, float, bool, bool, unordered_map<string, float>> step(const torch::Tensor& action) override {
         int num_joints = sim->getNumJoints(humanoid_id);
-        const float max_velocity = 10.0f;
+        const float max_delta = 0.01f;
+        const float max_velocity = 1.0f;
         bool done = false;
 
         for (int j = 0; j < num_joints; ++j) {
-            float velocity = std::clamp(action[j].item<float>() * max_velocity, -max_velocity, max_velocity);
-            b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_VELOCITY);
+            b3JointInfo jointInfo;
+            sim->getJointInfo(humanoid_id, j, &jointInfo);
+            //if (jointInfo.m_parentIndex == -1)
+            //    continue;
+            if (jointInfo.m_jointType == JointType::eFixedType)
+                continue;
+
+            b3JointSensorState jointState;
+            sim->getJointState(humanoid_id, j, &jointState);
+            float current_pos = jointState.m_jointPosition;
+
+            float delta = std::clamp(action[j].item<float>() * max_delta, -max_delta, max_delta);
+            float target_pos = current_pos + delta;
+
+            b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
             motorArgs.m_maxTorqueValue = 10.0f;
-            motorArgs.m_targetVelocity = velocity;
+            motorArgs.m_targetPosition = target_pos;
+            motorArgs.m_targetVelocity = max_velocity;
 
             sim->setJointMotorControl(humanoid_id, j, motorArgs);
 
@@ -404,7 +426,7 @@ public:
         }
 
         sim->stepSimulation();
-        
+
         b3LinkState head_state;
         sim->getLinkState(humanoid_id, num_joints - 1, 0, 0, &head_state);
 
@@ -420,6 +442,8 @@ public:
             done = true;
         return { get_observation(), reward, done, false, {} };
     }
+
+
 
     torch::Tensor get_observation() {
         std::vector<float> obs;

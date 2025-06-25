@@ -352,14 +352,14 @@
 			</geometry>
 		</collision>
 	</link>
-	<joint name="abdomen_z" type="continuous">
+	<joint name="abdomen_z" type="fixed">
 		<parent link="torso"/>
 		<child link="link1_2"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00400 0.00000" xyz="-0.01026 0.00000 -0.19500"/>
 		<axis xyz="0.00000 0.00000 1.00000"/>
 	</joint>
-	<joint name="abdomen_y" type="continuous">
+	<joint name="abdomen_y" type="fixed">
 		<parent link="link1_2"/>
 		<child link="link1_3"/>
 		<dynamics damping="1.0" friction="0.0001"/>
@@ -373,7 +373,7 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.06500"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="abdomen_x" type="continuous">
+	<joint name="abdomen_x" type="fixed">
 		<parent link="lwaist"/>
 		<child link="link1_5"/>
 		<dynamics damping="1.0" friction="0.0001"/>
@@ -387,7 +387,7 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.10000"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="right_hip_x" type="continuous">
+	<joint name="right_hip_x" type="fixed">
 		<parent link="pelvis"/>
 		<child link="link1_7"/>
 		<dynamics damping="1.0" friction="0.0001"/>
@@ -450,7 +450,7 @@
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.08000"/>
 		<axis xyz="0.00000 0.00000 0.00000"/>
 	</joint>
-	<joint name="left_hip_x" type="continuous">
+	<joint name="left_hip_x" type="fixed">
 		<parent link="pelvis"/>
 		<child link="link1_16"/>
 		<dynamics damping="1.0" friction="0.0001"/>
