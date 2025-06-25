@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        AgentTargetEnv env(device);
+        HumanoidEnv env(device);
         if (true) {
             //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
             train(env, hyperparameters, device, "", "");

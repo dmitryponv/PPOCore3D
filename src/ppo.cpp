@@ -126,7 +126,6 @@ void PPO::learn(int total_timesteps) {
 			auto [V, _] = evaluate(batch_obs, batch_acts);
 
 			torch::Tensor A_k = batch_rtgs.unsqueeze(1) - V.detach();
-			std::cout << "A_k shape: " << A_k.sizes() << std::endl;
 			A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10);
 
 			print_tensor_inline("batch_obs", batch_obs);
@@ -141,12 +140,12 @@ void PPO::learn(int total_timesteps) {
 				auto [V, curr_log_probs] = evaluate(batch_obs, batch_acts);
 
 				torch::Tensor ratios = torch::exp(curr_log_probs - batch_log_probs);
-				std::cout << "ratios shape: " << ratios.sizes() << std::endl;
 				torch::Tensor surr1 = ratios * A_k;
 				torch::Tensor surr2 = torch::clamp(ratios, 1 - clip, 1 + clip) * A_k;
 
 				torch::Tensor actor_loss = -torch::min(surr1, surr2).mean();
-				torch::Tensor critic_loss = torch::mse_loss(V, batch_rtgs);
+				torch::Tensor critic_loss = torch::mse_loss(V, batch_rtgs.unsqueeze(1));
+				//torch::Tensor critic_loss = torch::mse_loss(V.squeeze(1), batch_rtgs);
 
 
 				print_tensor_inline("V", V);
@@ -158,12 +157,10 @@ void PPO::learn(int total_timesteps) {
 				print_tensor_inline("critic_loss", critic_loss);
 
 				actor_optim->zero_grad();
-				std::cout << "actor backward" << std::endl;
 				actor_loss.backward({}, true);
 				actor_optim->step();
 
 				critic_optim->zero_grad();
-				std::cout << "critic backward" << std::endl;
 				critic_loss.backward();
 				critic_optim->step();
 
@@ -379,12 +376,6 @@ std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs
 		auto dist = NormalMultivariate(mean, std_dev, device);
 		torch::Tensor action_tensor = dist.sample();
 		torch::Tensor log_prob = dist.log_prob(action_tensor);
-
-		print_tensor_inline("obs_tensor", obs_tensor);
-		print_tensor_inline("mean", mean);
-		print_tensor_inline("action_tensor", action_tensor);
-		print_tensor_inline("log_prob_tensor", log_prob);
-
 		return { action_tensor.detach(), log_prob.detach() };
 	}
 	catch (const std::exception& e) {
@@ -456,7 +447,6 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 
 				auto [action_tensor, log_prob] = get_action(obs_tensor);
 				auto [next_obs, rew, terminated, truncated, __] = env.step(action_tensor);
-				print_tensor_inline("log_prob", log_prob);
 
 				done = terminated || truncated;
 
@@ -480,12 +470,6 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 		torch::Tensor batch_log_probs = torch::stack(batch_log_probs_vec).to(torch::kFloat);
 		torch::Tensor batch_rtgs = compute_rtgs(batch_rewards);
 		torch::Tensor batch_lengths = torch::tensor(batch_lengths_vec, torch::kInt64);
-
-		print_tensor_inline("batch_obs", batch_obs);
-		print_tensor_inline("batch_acts", batch_acts);
-		print_tensor_inline("batch_log_probs", batch_log_probs);
-		print_tensor_inline("batch_rtgs", batch_rtgs);
-		print_tensor_inline("batch_lengths", batch_lengths);
 		logger["batch_rewards"] = batch_rewards;
 		logger["batch_lengths"] = batch_lengths_vec;
 

@@ -384,7 +384,7 @@ public:
         for (int j = 0; j < num_joints; ++j) {
             float velocity = std::clamp(action[j].item<float>() * max_velocity, -max_velocity, max_velocity);
             b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_VELOCITY);
-            motorArgs.m_maxTorqueValue = 100.0f;
+            motorArgs.m_maxTorqueValue = 10.0f;
             motorArgs.m_targetVelocity = velocity;
 
             sim->setJointMotorControl(humanoid_id, j, motorArgs);
@@ -396,15 +396,15 @@ public:
                 link_state.m_worldLinearVelocity[1],
                 link_state.m_worldLinearVelocity[2]);
 
-            if (std::abs(vel.x()) > max_velocity * 10 ||
-                std::abs(vel.y()) > max_velocity * 10 ||
-                std::abs(vel.z()) > max_velocity * 10) {
-                done = true;
-            }
+            //if (std::abs(vel.x()) > max_velocity * 10 ||
+            //    std::abs(vel.y()) > max_velocity * 10 ||
+            //    std::abs(vel.z()) > max_velocity * 10) {
+            //    done = true;
+            //}
         }
 
         sim->stepSimulation();
-
+        
         b3LinkState head_state;
         sim->getLinkState(humanoid_id, num_joints - 1, 0, 0, &head_state);
 
@@ -416,7 +416,7 @@ public:
         btVector3 target_pos(0.0f, 0.0f, 2.0f);
         float dist = (head_pos - target_pos).length();
         float reward = (dist < 1.0f) ? (1.0f / dist) : -(dist);
-        if (dist > 4)
+        if (dist > 10)
             done = true;
         return { get_observation(), reward, done, false, {} };
     }
