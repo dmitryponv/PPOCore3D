@@ -416,7 +416,7 @@
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 1.00000 0.00000"/>
-		<limit lower="-0.4" upper="2.0" effort="100.0" velocity="10.0"/> <!-- Standard human hip range -->
+		<limit lower="-2.0" upper="2.0" effort="100.0" velocity="10.0"/> <!-- Standard human hip range -->
 	</joint>
 	<joint name="jointfix_2_9" type="fixed">
 		<parent link="link1_9"/>
@@ -485,7 +485,7 @@
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="0.00000 1.00000 0.00000"/>
-		<limit lower="-0.4" upper="2.0" effort="100.0" velocity="10.0"/>
+		<limit lower="-2.0" upper="2.0" effort="100.0" velocity="10.0"/>
 	</joint>
 	<joint name="jointfix_5_18" type="fixed">
 		<parent link="link1_18"/>
@@ -547,7 +547,7 @@
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="1.00000 0.00000 0.00000"/>
-		<limit lower="-1.0" upper="1.0" effort="100.0" velocity="10.0"/>
+		<limit lower="-2.0" upper="2.0" effort="100.0" velocity="10.0"/>
 	</joint>
 	<joint name="jointfix_9_26" type="fixed">
 		<parent link="link1_26"/>
@@ -587,7 +587,7 @@
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
 		<axis xyz="1.00000 0.00000 0.00000"/>
-		<limit lower="-1.0" upper="1.0" effort="100.0" velocity="10.0"/>
+		<limit lower="-2.0" upper="2.0" effort="100.0" velocity="10.0"/>
 	</joint>
 	<joint name="jointfix_11_31" type="fixed">
 		<parent link="link1_31"/>

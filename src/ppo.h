@@ -12,6 +12,7 @@
 #include <chrono>
 #include <unordered_map>
 
+#include "../Utils/b3Clock.h"
 #include "env.h"
 
 class NormalMultivariate {

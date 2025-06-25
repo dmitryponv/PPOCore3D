@@ -326,103 +326,49 @@ public:
         }
         return { get_observation(), {} };
     }
-    
-    //tuple<torch::Tensor, float, bool, bool, unordered_map<string, float>> step(const torch::Tensor& action) override {
-    //    int num_joints = sim->getNumJoints(humanoid_id);
-    //    const float max_torque = 500.0f;
-    //    const float max_vel = 50.0f;
-    //    bool done = false;
-    //
-    //    std::vector<b3LinkState> link_states(num_joints);
-    //    for (int i = 0; i < num_joints; ++i) {
-    //        sim->getLinkState(humanoid_id, i, 1, 0, &link_states[i]); // enable velocity computation
-    //        sim->applyExternalTorque(humanoid_id, i, btVector3(0, 0, 0), EF_LINK_FRAME); // zero torque
-    //
-    //        btVector3 vel(
-    //            link_states[i].m_worldLinearVelocity[0],
-    //            link_states[i].m_worldLinearVelocity[1],
-    //            link_states[i].m_worldLinearVelocity[2]);
-    //
-    //        if (std::abs(vel.x()) > max_vel || std::abs(vel.y()) > max_vel || std::abs(vel.z()) > max_vel) {
-    //            done = true;
-    //        }
-    //    }
-    //
-    //    for (int j = 0; j < num_joints; ++j) {
-    //        b3JointInfo joint_info;
-    //        sim->getJointInfo(humanoid_id, j, &joint_info);
-    //        int parent_index = joint_info.m_parentIndex;
-    //
-    //        if (parent_index >= 0) {
-    //            btVector3 parent_pos(
-    //                link_states[parent_index].m_worldPosition[0],
-    //                link_states[parent_index].m_worldPosition[1],
-    //                link_states[parent_index].m_worldPosition[2]);
-    //
-    //            btVector3 child_pos(
-    //                link_states[j].m_worldPosition[0],
-    //                link_states[j].m_worldPosition[1],
-    //                link_states[j].m_worldPosition[2]);
-    //
-    //            btVector3 axis = child_pos - parent_pos;
-    //            if (axis.length2() > 1e-6f) {
-    //                axis.normalize();
-    //                float torque = std::clamp(action[j].item<float>() * max_torque, -max_torque, max_torque);
-    //                btVector3 torqueVec = axis * torque;
-    //                sim->applyExternalTorque(humanoid_id, j, torqueVec, EF_LINK_FRAME);
-    //            }
-    //        }
-    //    }
-    //
-    //    sim->stepSimulation();
-    //
-    //    b3LinkState head_state;
-    //    sim->getLinkState(humanoid_id, num_joints - 1, 0, 0, &head_state);
-    //    float reward = head_state.m_worldPosition[2];
-    //
-    //    return { get_observation(), reward, done, false, {} };
-    //}
 
-    tuple<torch::Tensor, float, bool, bool, unordered_map<string, float>> step(const torch::Tensor& action) override {
+    tuple<torch::Tensor, float, bool, bool, unordered_map<string, float>> step(const torch::Tensor& action) {
+        //SHOW FPS
+        static b3Clock clock;
+        static double lastTime = clock.getTimeInSeconds();
+        static int frameCount = 0;
+        static int fpsTextId = -1;
+        frameCount++;
+        double currentTime = clock.getTimeInSeconds();
+        double elapsed = currentTime - lastTime;
+        if (elapsed >= 1.0) {
+            double fps = frameCount / elapsed;
+            std::string text = "FPS: " + std::to_string(fps);
+            if (fpsTextId >= 0)
+                sim->removeUserDebugItem(fpsTextId);
+            double pos[3] = { 0, 0, 2 };
+            b3RobotSimulatorAddUserDebugTextArgs args;
+            fpsTextId = sim->addUserDebugText(text.c_str(), pos, args);
+            lastTime = currentTime;
+            frameCount = 0;
+        }
+        
         int num_joints = sim->getNumJoints(humanoid_id);
-        const float max_delta = 0.01f;
         const float max_velocity = 1.0f;
         bool done = false;
 
         for (int j = 0; j < num_joints; ++j) {
             b3JointInfo jointInfo;
             sim->getJointInfo(humanoid_id, j, &jointInfo);
-            //if (jointInfo.m_parentIndex == -1)
-            //    continue;
-            if (jointInfo.m_jointType == JointType::eFixedType)
+
+            if (jointInfo.m_jointType != JointType::eRevoluteType) {
                 continue;
+            }
 
-            b3JointSensorState jointState;
-            sim->getJointState(humanoid_id, j, &jointState);
-            float current_pos = jointState.m_jointPosition;
-
-            float delta = std::clamp(action[j].item<float>() * max_delta, -max_delta, max_delta);
-            float target_pos = current_pos + delta;
+            float action_single = action[j].item<float>()*10.0f;
+            //float target_pos = std::clamp(action_single, (float)jointInfo.m_jointLowerLimit, (float)jointInfo.m_jointUpperLimit);
 
             b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-            motorArgs.m_maxTorqueValue = 10.0f;
-            motorArgs.m_targetPosition = target_pos;
+            motorArgs.m_maxTorqueValue = 200.0f;
+            motorArgs.m_targetPosition = action_single;
             motorArgs.m_targetVelocity = max_velocity;
 
             sim->setJointMotorControl(humanoid_id, j, motorArgs);
-
-            b3LinkState link_state;
-            sim->getLinkState(humanoid_id, j, 1, 0, &link_state); // get velocity
-            btVector3 vel(
-                link_state.m_worldLinearVelocity[0],
-                link_state.m_worldLinearVelocity[1],
-                link_state.m_worldLinearVelocity[2]);
-
-            //if (std::abs(vel.x()) > max_velocity * 10 ||
-            //    std::abs(vel.y()) > max_velocity * 10 ||
-            //    std::abs(vel.z()) > max_velocity * 10) {
-            //    done = true;
-            //}
         }
 
         sim->stepSimulation();
@@ -433,16 +379,20 @@ public:
         btVector3 head_pos(
             head_state.m_worldPosition[0],
             head_state.m_worldPosition[1],
-            head_state.m_worldPosition[2]);
+            head_state.m_worldPosition[2]
+        );
 
-        btVector3 target_pos(0.0f, 0.0f, 2.0f);
-        float dist = (head_pos - target_pos).length();
-        float reward = (dist < 1.0f) ? (1.0f / dist) : -(dist);
-        if (dist > 10)
+
+        btVector3 target_pos_check(0.0f, 0.0f, 2.0f);
+        float dist = (head_pos - target_pos_check).length();
+        float reward = dist - 1.0f;
+
+        if (dist > 30) {
             done = true;
+        }
+
         return { get_observation(), reward, done, false, {} };
     }
-
 
 
     torch::Tensor get_observation() {
