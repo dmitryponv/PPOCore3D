@@ -1,5 +1,5 @@
 ﻿#include "env.h"
-
+/*
 RobotEnv::RobotEnv(torch::Device& device) : mDevice(device) {
     sim = new b3RobotSimulatorClientAPI();
     bool isConnected = sim->connect(eCONNECT_GUI);
@@ -139,3 +139,4 @@ torch::Tensor RobotEnv::get_observation() const {
 
     return torch::from_blob(obs.data(), { (int64_t)obs.size() }).clone().to(mDevice);
 }
+*/

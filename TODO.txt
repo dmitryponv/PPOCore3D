@@ -1,4 +1,5 @@
 1. Create Multiple ENV files with header and source code separated
 2. Get a real MultivariateNormal source code
 3. Add multiple environemtns to the same scene for batch processing
-4. 
+3.5 remove window sin bullet
+4. Add a graphing display or figure out how to use one in bullet
