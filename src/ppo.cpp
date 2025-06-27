@@ -55,8 +55,8 @@ torch::Tensor FeedForwardNNImpl::forward(torch::Tensor obs) {
 	}
 }
 
-PPO::PPO(Env& env, const std::unordered_map<std::string, float>& hyperparameters, torch::Device& device, string actor_model, string critic_model)
-	: env(env), device(device) {
+PPO::PPO(Env& env, const std::unordered_map<std::string, float>& hyperparameters, torch::Device& device, GraphWindowManager& graph_manager, string actor_model, string critic_model)
+	: env(env), device(device), graph_manager(graph_manager){
 	try {
 		obs_dim = env.observation_space().shape[0];
 		act_dim = env.action_space().shape[0];
@@ -225,6 +225,9 @@ void PPO::_log_train() {
 		logger["batch_lengths"] = vector<vector<int>>{};
 		logger["batch_rewards"] = vector<vector<vector<float>>>{};
 		logger["actor_loss"] = torch::Tensor();
+
+		std::vector<float> y1 = { 10.0f, 12.5f, 15.0f };
+		graph_manager.Graph("Rewards", avg_ep_rews);
 	}
 	catch (const std::exception& e) {
 		std::cerr << "Exception in _log_summary: " << e.what() << std::endl;
@@ -446,26 +449,27 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 					observations[i] = next_obs;
 					batch_acts_vec[i].push_back(actions[i]);
 					batch_log_probs_vec[i].push_back(log_probs[i]);
-					if (max_timesteps_per_episode == ep_t+1)// || done)
+					if (max_timesteps_per_episode == ep_t+1 || done)
 					{
 						batch_lengths_vec[i].push_back(ep_rews[i].size());
 						batch_rewards[i].push_back(ep_rews[i]);
 						observations[i] = env.reset(i);
+						ep_rews[i].clear();
 					}
 				}
 			}
 		}
 
-		torch::Tensor batch_obs = torch::stack(flatten(batch_obs_vec)).to(torch::kFloat);
-		torch::Tensor batch_acts = torch::stack(flatten(batch_acts_vec)).to(torch::kFloat);
-		torch::Tensor batch_log_probs = torch::stack(flatten(batch_log_probs_vec)).to(torch::kFloat);
+		torch::Tensor batch_obs = torch::stack(flatten(batch_obs_vec)).to(torch::kFloat).to(device);
+		torch::Tensor batch_acts = torch::stack(flatten(batch_acts_vec)).to(torch::kFloat).to(device);
+		torch::Tensor batch_log_probs = torch::stack(flatten(batch_log_probs_vec)).to(torch::kFloat).to(device);
 		torch::Tensor batch_rtgs = torch::cat([this, &batch_rewards]() {
 			std::vector<torch::Tensor> rtgs;
 			for (const auto& rewards : batch_rewards)
 				rtgs.push_back(this->compute_rtgs(rewards));
 			return rtgs;
-			}());
-		torch::Tensor batch_lengths = torch::tensor(flatten(batch_lengths_vec), torch::kInt64);
+			}()).to(device);
+		torch::Tensor batch_lengths = torch::tensor(flatten(batch_lengths_vec), torch::kInt64).to(device);
 		logger["batch_rewards"] = batch_rewards;
 		logger["batch_lengths"] = batch_lengths_vec;
 

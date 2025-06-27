@@ -48,7 +48,8 @@ TORCH_MODULE(FeedForwardNN);
 class PPO {
 public:
 
-    PPO(Env& env, const std::unordered_map<std::string, float>& hyperparameters, torch::Device& device, std::string actor_model = "", std::string critic_model = "");
+    PPO(Env& env, const std::unordered_map<std::string, float>& hyperparameters, torch::Device& device,
+        GraphWindowManager& graph_manager, std::string actor_model = "", std::string critic_model = "");
 
     void learn(int total_timesteps);
 
@@ -66,6 +67,7 @@ private:
     std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> rollout_train();
 
     Env& env;
+    GraphWindowManager& graph_manager;
     int obs_dim;
     int act_dim;
     float lr;

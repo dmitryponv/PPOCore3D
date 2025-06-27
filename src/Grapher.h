@@ -167,8 +167,8 @@ private:
         HPEN hPenAxis = CreatePen(PS_SOLID, 2, RGB(150, 150, 150));
         HPEN hOldPen = (HPEN)SelectObject(hdc, hPenAxis);
 
-        MoveToEx(hdc, static_cast<int>(graphAreaX), static_cast<int>(graphAreaY), NULL);
-        LineTo(hdc, static_cast<int>(graphAreaX + graphAreaWidth), static_cast<int>(graphAreaY));
+        MoveToEx(hdc, static_cast<int>(graphAreaX), static_cast<int>(graphAreaY + graphAreaHeight), NULL);
+        LineTo(hdc, static_cast<int>(graphAreaX + graphAreaWidth), static_cast<int>(graphAreaY + graphAreaHeight));
 
         MoveToEx(hdc, static_cast<int>(graphAreaX), static_cast<int>(graphAreaY), NULL);
         LineTo(hdc, static_cast<int>(graphAreaX), static_cast<int>(graphAreaY + graphAreaHeight));
@@ -190,7 +190,7 @@ private:
         float firstYNorm = (m_graphData[0] - m_graphMinY) / (m_graphMaxY - m_graphMinY);
         MoveToEx(hdc,
             static_cast<int>(graphAreaX + firstXNorm * graphAreaWidth),
-            static_cast<int>(graphAreaY + firstYNorm * graphAreaHeight),
+            static_cast<int>(graphAreaY + (1.0f - firstYNorm) * graphAreaHeight),
             NULL);
 
         for (size_t i = 0; i < m_graphData.size(); ++i) {
@@ -198,7 +198,7 @@ private:
             float yNorm = (m_graphData[i] - m_graphMinY) / (m_graphMaxY - m_graphMinY);
 
             float plotX = graphAreaX + xNorm * graphAreaWidth;
-            float plotY = graphAreaY + yNorm * graphAreaHeight;
+            float plotY = graphAreaY + (1.0f - yNorm) * graphAreaHeight;
 
             LineTo(hdc, static_cast<int>(plotX), static_cast<int>(plotY));
 
@@ -215,6 +215,7 @@ private:
         SelectObject(hdc, hOldPen);
         DeleteObject(hPenGraph);
     }
+
 
     // Static Window Procedure: Trampoline to the instance's member function
     static LRESULT CALLBACK StaticWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -290,8 +291,8 @@ public:
         //StartMessageLoop();
     }
 
-    void Graph(size_t index, const std::string& title, const std::vector<float>& yData, const std::vector<float>& xData = {}) {
-        EnsureWindow(index);
+    void Graph(const std::string& title, const std::vector<float>& yData, const std::vector<float>& xData = {}) {
+        size_t index = EnsureWindow(title);
         if (index < graphWindows.size()) {
             if (xData.empty()) {
                 graphWindows[index]->Graph(title, yData);
@@ -311,6 +312,41 @@ public:
         }
     }
 
+    void Graph(const std::string& title, float value) {
+        static std::map<std::string, std::vector<float>> graphData;
+        graphData[title].push_back(value);
+        size_t index = EnsureWindow(title);
+        if (index < graphWindows.size()) {
+            graphWindows[index]->Graph(title, graphData[title]);
+        }
+        MSG msg = {};
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+            if (msg.message == WM_QUIT) {
+                running = false;
+                break;
+            }
+        }
+    }
+
+    size_t EnsureWindow(const std::string& title) {
+        static std::map<std::string, size_t> titleToIndex;
+        auto it = titleToIndex.find(title);
+        if (it != titleToIndex.end()) {
+            return it->second;
+        }
+
+        int index = static_cast<int>(graphWindows.size());
+        int width = 600 + index * 50;
+        int height = 400 + index * 50;
+        graphWindows.push_back(std::make_unique<GraphWindow>(hInstance, width, height, title.c_str()));
+        graphWindows.back()->Show(nCmdShow);
+
+        titleToIndex[title] = index;
+        return index;
+    }
+
     void CloseAll() {
         running = false;
         PostQuitMessage(0);
@@ -319,34 +355,24 @@ public:
         }
     }
 
-private:
-    void StartMessageLoop() {
-        running = true;
-        messageLoopThread = std::thread([this]() {
-            MSG msg = {};
-            while (running && g_activeWindowCount > 0) {
-                while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-                    TranslateMessage(&msg);
-                    DispatchMessage(&msg);
-                    if (msg.message == WM_QUIT) {
-                        running = false;
-                        break;
-                    }
-                }
-                if (running && g_activeWindowCount > 0) {
-                    Sleep(10);
-                }
-            }
-            });
-    }
-
-    void EnsureWindow(size_t index) {
-        while (graphWindows.size() <= index) {
-            int width = 600 + static_cast<int>(index) * 50;
-            int height = 400 + static_cast<int>(index) * 50;
-            std::string title = "Graph " + std::to_string(index + 1);
-            graphWindows.push_back(std::make_unique<GraphWindow>(hInstance, width, height, title.c_str()));
-            graphWindows.back()->Show(nCmdShow);
-        }
-    }
+//private:
+//    void StartMessageLoop() {
+//        running = true;
+//        messageLoopThread = std::thread([this]() {
+//            MSG msg = {};
+//            while (running && g_activeWindowCount > 0) {
+//                while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+//                    TranslateMessage(&msg);
+//                    DispatchMessage(&msg);
+//                    if (msg.message == WM_QUIT) {
+//                        running = false;
+//                        break;
+//                    }
+//                }
+//                if (running && g_activeWindowCount > 0) {
+//                    Sleep(10);
+//                }
+//            }
+//            });
+//    }
 };

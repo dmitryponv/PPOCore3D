@@ -25,12 +25,13 @@ void train(
     Env& env,
     const std::unordered_map<std::string, float>& hyperparameters,
     torch::Device& device,
+    GraphWindowManager& graph_manager,
     const std::string& actor_model,
     const std::string& critic_model
 ) {
     std::cout << "Training" << std::endl;
 
-    PPO model(env, hyperparameters, device, actor_model, critic_model);  // Construct PPO with environment and hyperparameters
+    PPO model(env, hyperparameters, device, graph_manager, actor_model, critic_model);  // Construct PPO with environment and hyperparameters
 
     // Train PPO model for a large number of timesteps
     model.learn(2000000000);
@@ -44,32 +45,26 @@ void eval(Env& env, torch::Device& device, const std::string& actor_model, float
     model.eval_policy(false, fixedTimeStepS);
 }
 
+void ShowConsole() {
+    AllocConsole();
+    FILE* fp;
+
+    freopen_s(&fp, "CONOUT$", "w", stdout);
+    freopen_s(&fp, "CONOUT$", "w", stderr);
+    freopen_s(&fp, "CONIN$", "r", stdin);
+
+    SetConsoleTitleA("Debug Console");
+    std::ios::sync_with_stdio();
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    try {
-        GraphWindowManager manager(hInstance, nCmdShow);
-        manager.Init();
-
-        std::vector<float> y1 = { 10.0f, 12.5f, 15.0f };
-        manager.Graph(0, "Graph A", y1);
-
-        //std::vector<float> y2 = { 1.0f, 0.8f, 0.6f };
-        //std::vector<float> x2 = { 0.1f, 0.2f, 0.3f };
-        //manager.Graph(1, "Graph B", y2, x2);
-
-        Sleep(5000);
-
-        y1 = { 50.0f, 42.5f, 15.0f };
-        manager.Graph(0, "Graph A", y1);
-    }
-    catch (const std::runtime_error& e) {
-        MessageBoxA(NULL, e.what(), "Error", MB_ICONEXCLAMATION | MB_OK);
-        return 1;
-    }
-
+    ShowConsole();
+    GraphWindowManager graph_manager(hInstance, nCmdShow);
+    graph_manager.Init();
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
-        {"timesteps_per_batch", 10000},
-        {"max_timesteps_per_episode", 5000},
+        {"timesteps_per_batch", 1000},
+        {"max_timesteps_per_episode", 500},
         {"gamma", 0.99},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
@@ -104,17 +99,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::cout << "Failed to get device properties.\n";
         }
 
-        //device = torch::Device(torch::kCUDA, 0);
+        device = torch::Device(torch::kCUDA, 0);
     }
     else {
         std::cout << "CUDA is NOT available. CPU will be used.\n";
     }
 
     try {
-        HumanoidEnv env(device, 1);
+        AgentTargetEnv env(device, 2);
         if (true) {
             //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
-            train(env, hyperparameters, device, "", "");
+            train(env, hyperparameters, device, graph_manager, "", "");
         }
         else {
             float fixedTimeStepS = 1. / 5.;
