@@ -15,7 +15,7 @@
 #include "../Utils/b3Clock.h"
 #include "env.h"
 
-//#include "Grapher.h"
+#include "Grapher.h"
 
 class NormalMultivariate {
     torch::Tensor mean, stddev, var, log_std;

@@ -20,6 +20,14 @@ endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/torch.cmake")
 
+############################################
+############# EDIT AND CONTINUE ############
+############################################
+if (MSVC)
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /ZI")
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /ZI")
+endif()
+
 #############################################
 ############## SOURCE FILES #################
 #############################################
@@ -37,7 +45,7 @@ set(RobotSimulator_SRCS
     include/bullet/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp
 )
 
-add_executable(PPOCore3D src/main.cpp src/ppo.cpp src/env.cpp ${RobotSimulator_SRCS})
+add_executable(PPOCore3D WIN32 src/main.cpp src/ppo.cpp src/env.cpp ${RobotSimulator_SRCS})
 set_property(TARGET PPOCore3D PROPERTY CXX_STANDARD 17)
 target_link_libraries(PPOCore3D "${TORCH_LIBRARIES}")
 

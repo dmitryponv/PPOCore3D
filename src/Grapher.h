@@ -1,23 +1,24 @@
-// This code demonstrates how to open a window and draw a 2D line graph
-// using the native Windows API (WinAPI) for window management and GDI (Graphics Device Interface) for drawing.
-// It encapsulates the logic within a 'GraphWindow' class.
-// It does NOT use SFML, Bullet 3D, FreeGLUT, OpenGL, GLFW, or GLAD.
+#pragma once // Ensures this header is included only once during compilation
+#define WIN32_LEAN_AND_MEAN // Excludes less common API elements to speed up compilation
+#define NOMINMAX // Prevents Windows.h from defining min/max macros that conflict with std::min/std::max
 
-// To compile this code, you will typically use a C++ compiler like MinGW-w64 or Visual Studio.
-// For MinGW-w64 (g++):
-// g++ main.cpp -o graph_app -lgdi32 -mwindows
-//
-// For Visual Studio: Create a new "Desktop App" project (C++) and paste this code.
-// Ensure your project type is suitable for WinAPI (e.g., set subsystem to Windows, not Console).
+#include <windows.h>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <iostream>
+#include <stdexcept>
+#include <map> // For managing multiple GraphWindow instances
+#include <memory> // For std::unique_ptr
+#include <atomic> // For std::atomic, or use volatile long for Interlocked* functions
 
-#include <windows.h> // Core Windows API header
-#include <vector>      // For std::vector to hold data
-#include <string>      // For std::string for text
-#include <algorithm>   // For std::min_element and std::max_element
-#include <iostream>    // For std::cerr for error output
-#include <stdexcept>   // For std::runtime_error
+// Global counter for active graph windows
+// Using volatile LONG with InterlockedIncrement/Decrement for basic thread-safe counting
+// __declspec(selectany) tells the linker to pick one definition if multiple exist,
+// resolving LNK2005 errors when a global variable is defined in multiple compilation units.
+__declspec(selectany) volatile LONG g_activeWindowCount = 0;
 
-// Class to manage the window and graph drawing
+// Class to manage a single graph window and its drawing
 class GraphWindow {
 public:
     // Constructor: Registers the window class and creates the window
@@ -26,55 +27,28 @@ public:
         m_hWnd(NULL),
         m_windowWidth(initialWidth),
         m_windowHeight(initialHeight),
-        m_padding(70.0f) // Initialize padding
+        m_padding(70.0f)
     {
-        // Set initial graph data, min/max X/Y will be calculated based on this
-        m_graphData = {
-            0.5f, 1.2f, 2.0f, 1.8f, 2.5f, 3.0f, 2.8f, 3.5f, 4.0f, 3.8f,
-            4.5f, 5.0f, 4.8f, 5.5f, 6.0f, 5.8f, 6.5f, 7.0f, 6.8f, 7.5f,
-            7.2f, 6.9f, 6.0f, 5.5f, 5.0f, 4.5f, 4.0f, 3.5f, 3.0f, 2.5f,
-            2.0f, 1.5f, 1.0f, 0.5f, 0.0f, -0.5f, -1.0f, -1.5f, -2.0f
-        };
+        // Register the window class only once per application instance
+        static bool classRegistered = false;
+        if (!classRegistered) {
+            WNDCLASS wc = {};
+            wc.lpfnWndProc = StaticWndProc; // Static callback function
+            wc.hInstance = hInstance;
+            wc.lpszClassName = "GraphWindowClass"; // Use narrow string literal
+            wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 
-        // Calculate initial graph min/max X and Y based on data
-        if (!m_graphData.empty()) {
-            m_graphMinX = 0.0f;
-            m_graphMaxX = static_cast<float>(m_graphData.size() - 1);
-            m_graphMinY = *std::min_element(m_graphData.begin(), m_graphData.end());
-            m_graphMaxY = *std::max_element(m_graphData.begin(), m_graphData.end());
-            // Add buffer to Y-axis
-            if (m_graphMaxY - m_graphMinY == 0) {
-                m_graphMaxY = m_graphMinY + 1.0f;
-                m_graphMinY = m_graphMinY - 1.0f;
+            if (!RegisterClass(&wc)) {
+                throw std::runtime_error("Window Class Registration Failed!");
             }
-            else {
-                float buffer = (m_graphMaxY - m_graphMinY) * 0.1f;
-                m_graphMaxY += buffer;
-                m_graphMinY -= buffer;
-            }
-        }
-        else {
-            m_graphMinX = 0.0f; m_graphMaxX = 1.0f;
-            m_graphMinY = 0.0f; m_graphMaxY = 1.0f;
-        }
-
-
-        // Register the window class
-        WNDCLASS wc = {};
-        wc.lpfnWndProc = StaticWndProc; // Static callback function
-        wc.hInstance = hInstance;
-        wc.lpszClassName = "GraphWindowClass";
-        wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); // Will be overwritten by custom drawing
-
-        if (!RegisterClass(&wc)) {
-            throw std::runtime_error("Window Registration Failed!");
+            classRegistered = true;
         }
 
         // Create the window
-        m_hWnd = CreateWindowEx(
+        m_hWnd = CreateWindowExA( // Use CreateWindowExA for narrow strings
             0,
-            "GraphWindowClass",
-            std::string(title.begin(), title.end()).c_str(), // Convert std::string to wide string (LPCWSTR)
+            "GraphWindowClass", // Use narrow string literal
+            title.c_str(),      // Use c_str() directly for narrow string title
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT,
             m_windowWidth, m_windowHeight,
@@ -89,210 +63,290 @@ public:
         }
     }
 
-    // Show the window
+    // Destructor: Decrements the global window count
+    ~GraphWindow() {
+        // If the HWND is still valid, ensure it's removed from global count
+        // WM_DESTROY already decrements, but this covers cases where window isn't fully created
+        // or if GraphWindow object is destroyed without WM_DESTROY (e.g., app force closes)
+        if (m_hWnd && IsWindow(m_hWnd)) {
+            // This case should ideally not happen if WM_DESTROY is processed correctly
+            // but for robustness, ensures counter consistency.
+            InterlockedDecrement(&g_activeWindowCount);
+        }
+    }
+
+    // Displays the window
     void Show(int nCmdShow) {
         ShowWindow(m_hWnd, nCmdShow);
         UpdateWindow(m_hWnd);
     }
 
-    // Runs the main message loop for the window
-    int RunMessageLoop() {
-        MSG msg;
-        while (GetMessage(&msg, NULL, 0, 0) > 0) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+    // Plots new graph data
+    // y: required vector of Y-values
+    // x: optional vector of X-values; if empty, uses 0, 1, 2...
+    void Graph(const std::string& windowTitle, const std::vector<float>& y, const std::vector<float>& x = {}) {
+        m_graphData = y;
+        m_graphXData = x;
+        m_windowTitle = windowTitle; // Update window title
+
+        if (m_graphXData.empty()) {
+            m_graphXData.resize(m_graphData.size());
+            for (size_t i = 0; i < m_graphData.size(); ++i) {
+                m_graphXData[i] = static_cast<float>(i);
+            }
         }
-        return (int)msg.wParam;
+
+        // Recalculate min/max values based on new data
+        if (!m_graphData.empty() && !m_graphXData.empty()) {
+            m_graphMinX = *std::min_element(m_graphXData.begin(), m_graphXData.end());
+            m_graphMaxX = *std::max_element(m_graphXData.begin(), m_graphXData.end());
+            m_graphMinY = *std::min_element(m_graphData.begin(), m_graphData.end());
+            m_graphMaxY = *std::max_element(m_graphData.begin(), m_graphData.end());
+
+            // Add buffer to X-axis
+            if (m_graphMaxX - m_graphMinX == 0) {
+                m_graphMaxX = m_graphMinX + 1.0f;
+                m_graphMinX = m_graphMinX - 1.0f;
+            }
+            else {
+                float bufferX = (m_graphMaxX - m_graphMinX) * 0.05f; // 5% buffer
+                m_graphMaxX += bufferX;
+                m_graphMinX -= bufferX;
+            }
+
+            // Add buffer to Y-axis
+            if (m_graphMaxY - m_graphMinY == 0) {
+                m_graphMaxY = m_graphMinY + 1.0f;
+                m_graphMinY = m_graphMinY - 1.0f;
+            }
+            else {
+                float bufferY = (m_graphMaxY - m_graphMinY) * 0.1f; // 10% buffer
+                m_graphMaxY += bufferY;
+                m_graphMinY -= bufferY;
+            }
+        }
+        else { // Handle empty data
+            m_graphMinX = 0.0f; m_graphMaxX = 1.0f;
+            m_graphMinY = 0.0f; m_graphMaxY = 1.0f;
+        }
+
+        // Set the new window title
+        SetWindowTextA(m_hWnd, m_windowTitle.c_str()); // Use SetWindowTextA
+        // Force redraw
+        InvalidateRect(m_hWnd, NULL, TRUE);
     }
+
+    // Public getter for HWND, used by WinMain to check window validity
+    HWND GetHwnd() const { return m_hWnd; }
 
 private:
     HINSTANCE m_hInstance;
     HWND m_hWnd;
     int m_windowWidth;
     int m_windowHeight;
+    std::string m_windowTitle;
 
-    std::vector<float> m_graphData;
+    std::vector<float> m_graphData;    // Y-values
+    std::vector<float> m_graphXData;   // X-values
     float m_padding;
     float m_graphMinX;
     float m_graphMaxX;
     float m_graphMinY;
     float m_graphMaxY;
 
-    // Private member function to draw the graph using GDI
     void DrawGraph(HDC hdc, RECT clientRect) {
-        // Recalculate graphMinY and graphMaxY based on current data
-        // This recalculation can be optimized if data doesn't change often
-        if (!m_graphData.empty()) {
-            m_graphMinY = *std::min_element(m_graphData.begin(), m_graphData.end());
-            m_graphMaxY = *std::max_element(m_graphData.begin(), m_graphData.end());
-
-            // Add a little buffer for max/min Y to ensure points aren't exactly on the edge
-            if (m_graphMaxY - m_graphMinY == 0) {
-                m_graphMaxY = m_graphMinY + 1.0f;
-                m_graphMinY = m_graphMinY - 1.0f;
-            }
-            else {
-                float buffer = (m_graphMaxY - m_graphMinY) * 0.1f;
-                m_graphMaxY += buffer;
-                m_graphMinY -= buffer;
-            }
-        }
-        else {
-            m_graphMinY = 0.0f;
-            m_graphMaxY = 1.0f;
-        }
-
-        // Define the graph drawing area within the window (pixels)
         float graphAreaX = m_padding;
         float graphAreaY = m_padding;
         float graphAreaWidth = static_cast<float>(clientRect.right - clientRect.left - 2 * m_padding);
         float graphAreaHeight = static_cast<float>(clientRect.bottom - clientRect.top - 2 * m_padding);
 
-        // Ensure dimensions are positive
-        if (graphAreaWidth <= 0 || graphAreaHeight <= 0) {
-            std::cerr << "Warning: Graph area is too small due to window size or padding." << std::endl;
+        if (graphAreaWidth <= 0 || graphAreaHeight <= 0 || m_graphData.empty() || m_graphXData.empty()) {
             return;
         }
 
-        // --- Draw Axes ---
-        HPEN hPenAxis = CreatePen(PS_SOLID, 2, RGB(150, 150, 150)); // Grey pen for axes, 2 pixels thick
-        HPEN hOldPen = (HPEN)SelectObject(hdc, hPenAxis); // Select the pen into the DC
+        HPEN hPenAxis = CreatePen(PS_SOLID, 2, RGB(150, 150, 150));
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPenAxis);
 
-        // X-axis
         MoveToEx(hdc, static_cast<int>(graphAreaX), static_cast<int>(graphAreaY), NULL);
         LineTo(hdc, static_cast<int>(graphAreaX + graphAreaWidth), static_cast<int>(graphAreaY));
 
-        // Y-axis
         MoveToEx(hdc, static_cast<int>(graphAreaX), static_cast<int>(graphAreaY), NULL);
         LineTo(hdc, static_cast<int>(graphAreaX), static_cast<int>(graphAreaY + graphAreaHeight));
 
-        // Deselect and delete the axis pen
         SelectObject(hdc, hOldPen);
         DeleteObject(hPenAxis);
 
-        // --- Draw Graph Title and Labels (using TextOut) ---
-        SetTextColor(hdc, RGB(255, 255, 255)); // White color for text
-        SetBkMode(hdc, TRANSPARENT); // Make text background transparent
+        SetTextColor(hdc, RGB(255, 255, 255));
+        SetBkMode(hdc, TRANSPARENT);
 
-        // Graph Title
-        std::string title = "Episode Rewards Over Time";
-        TextOutA(hdc, static_cast<int>(graphAreaX), static_cast<int>(clientRect.bottom - m_padding / 2 - 20), title.c_str(), title.length());
+        TextOutA(hdc, static_cast<int>(graphAreaX), static_cast<int>(clientRect.bottom - m_padding / 2 - 20), m_windowTitle.c_str(), m_windowTitle.length());
+        TextOutA(hdc, static_cast<int>(graphAreaX + graphAreaWidth / 2 - 50), static_cast<int>(graphAreaY - m_padding / 2), "X-Axis", 6);
+        TextOutA(hdc, static_cast<int>(graphAreaX - m_padding / 2 + 10), static_cast<int>(graphAreaY + graphAreaHeight / 2 - 10), "Y-Axis", 6);
 
-        // X-axis Label
-        std::string xAxisLabel = "Data Point Index";
-        TextOutA(hdc, static_cast<int>(graphAreaX + graphAreaWidth / 2 - 50), static_cast<int>(graphAreaY - m_padding / 2), xAxisLabel.c_str(), xAxisLabel.length());
+        HPEN hPenGraph = CreatePen(PS_SOLID, 2, RGB(0, 255, 0));
+        SelectObject(hdc, hPenGraph);
 
-        // Y-axis Label
-        std::string yAxisLabel = "Value";
-        TextOutA(hdc, static_cast<int>(graphAreaX - m_padding / 2 + 10), static_cast<int>(graphAreaY + graphAreaHeight / 2 - 10), yAxisLabel.c_str(), yAxisLabel.length());
+        float firstXNorm = (m_graphXData[0] - m_graphMinX) / (m_graphMaxX - m_graphMinX);
+        float firstYNorm = (m_graphData[0] - m_graphMinY) / (m_graphMaxY - m_graphMinY);
+        MoveToEx(hdc,
+            static_cast<int>(graphAreaX + firstXNorm * graphAreaWidth),
+            static_cast<int>(graphAreaY + firstYNorm * graphAreaHeight),
+            NULL);
 
+        for (size_t i = 0; i < m_graphData.size(); ++i) {
+            float xNorm = (m_graphXData[i] - m_graphMinX) / (m_graphMaxX - m_graphMinX);
+            float yNorm = (m_graphData[i] - m_graphMinY) / (m_graphMaxY - m_graphMinY);
 
-        // --- Draw Data Points and Lines ---
-        if (!m_graphData.empty()) {
-            HPEN hPenGraph = CreatePen(PS_SOLID, 2, RGB(0, 255, 0)); // Green pen for graph line, 2 pixels thick
-            SelectObject(hdc, hPenGraph); // Select the graph pen
+            float plotX = graphAreaX + xNorm * graphAreaWidth;
+            float plotY = graphAreaY + yNorm * graphAreaHeight;
 
-            // Start drawing the line strip
-            MoveToEx(hdc,
-                static_cast<int>(graphAreaX + ((0.0f - m_graphMinX) / (m_graphMaxX - m_graphMinX)) * graphAreaWidth),
-                static_cast<int>(graphAreaY + ((m_graphData[0] - m_graphMinY) / (m_graphMaxY - m_graphMinY)) * graphAreaHeight),
-                NULL);
+            LineTo(hdc, static_cast<int>(plotX), static_cast<int>(plotY));
 
-            for (size_t i = 0; i < m_graphData.size(); ++i) {
-                float xNorm = (static_cast<float>(i) - m_graphMinX) / (m_graphMaxX - m_graphMinX);
-                float yNorm = (m_graphData[i] - m_graphMinY) / (m_graphMaxY - m_graphMinY);
+            HBRUSH hBrushPoint = CreateSolidBrush(RGB(255, 0, 0));
+            HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, hBrushPoint);
 
-                float plotX = graphAreaX + xNorm * graphAreaWidth;
-                float plotY = graphAreaY + yNorm * graphAreaHeight;
+            Ellipse(hdc, static_cast<int>(plotX - 3), static_cast<int>(plotY - 3),
+                static_cast<int>(plotX + 3), static_cast<int>(plotY + 3));
 
-                // Lines connect from previous point to current
-                LineTo(hdc, static_cast<int>(plotX), static_cast<int>(plotY));
-
-                // Draw individual points (simple ellipses for points)
-                HBRUSH hBrushPoint = CreateSolidBrush(RGB(255, 0, 0)); // Red brush for points
-                HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, hBrushPoint);
-
-                Ellipse(hdc, static_cast<int>(plotX - 3), static_cast<int>(plotY - 3),
-                    static_cast<int>(plotX + 3), static_cast<int>(plotY + 3));
-
-                SelectObject(hdc, hOldBrush);
-                DeleteObject(hBrushPoint);
-            }
-
-            // Deselect and delete the graph pen
-            SelectObject(hdc, hOldPen); // Restore old pen before deleting current
-            DeleteObject(hPenGraph);
+            SelectObject(hdc, hOldBrush);
+            DeleteObject(hBrushPoint);
         }
+
+        SelectObject(hdc, hOldPen);
+        DeleteObject(hPenGraph);
     }
 
-    // Static Window Procedure: Acts as a trampoline to the instance's member function
+    // Static Window Procedure: Trampoline to the instance's member function
     static LRESULT CALLBACK StaticWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
         GraphWindow* pThis = nullptr;
-
         if (message == WM_NCCREATE) {
-            // Get the CREATESTRUCT pointer, which contains the 'this' pointer
             LPCREATESTRUCT lpcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
             pThis = static_cast<GraphWindow*>(lpcs->lpCreateParams);
-
-            // Store the 'this' pointer in the window's user data
             SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
         }
         else {
-            // Retrieve the 'this' pointer from the window's user data
             pThis = reinterpret_cast<GraphWindow*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
         }
 
         if (pThis) {
-            // Call the instance's non-static message handler
             return pThis->WndProc(hWnd, message, wParam, lParam);
         }
-
-        // If 'this' pointer not set yet or not found, fall back to default processing
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
 
-    // Instance Window Procedure: Handles messages for this specific GraphWindow instance
+    // Instance Window Procedure: Handles messages for this GraphWindow instance
     LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
         switch (message) {
         case WM_CREATE:
-            // m_hWnd is already set in the constructor for this instance
+            // Increment active window count when window is created
+            InterlockedIncrement(&g_activeWindowCount);
             break;
-
         case WM_PAINT:
         {
             PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps); // Get a device context for painting
-
+            HDC hdc = BeginPaint(hWnd, &ps);
             RECT clientRect;
-            GetClientRect(hWnd, &clientRect); // Get client rectangle for drawing area
-
-            // Fill background with dark grey
+            GetClientRect(hWnd, &clientRect);
             HBRUSH hBrushBackground = CreateSolidBrush(RGB(50, 50, 50));
             FillRect(hdc, &clientRect, hBrushBackground);
             DeleteObject(hBrushBackground);
-
-            // Call the member function to draw the graph
             DrawGraph(hdc, clientRect);
-
-            EndPaint(hWnd, &ps); // Release the device context
+            EndPaint(hWnd, &ps);
         }
         break;
-
         case WM_SIZE:
-            // Update member window dimensions on resize
             m_windowWidth = LOWORD(lParam);
             m_windowHeight = HIWORD(lParam);
-            // Invalidate the window to force a repaint with new dimensions
             InvalidateRect(hWnd, NULL, TRUE);
             break;
-
         case WM_DESTROY:
-            PostQuitMessage(0); // Post a quit message to terminate the application
+            // Decrement active window count when window is destroyed
+            InterlockedDecrement(&g_activeWindowCount);
+            m_hWnd = NULL; // Clear HWND to indicate window is no longer valid
+            // Do NOT PostQuitMessage here; WinMain's loop will manage termination
             break;
-
         default:
-            return DefWindowProc(hWnd, message, wParam, lParam); // Default message processing
+            return DefWindowProc(hWnd, message, wParam, lParam);
         }
         return 0;
+    }
+};
+
+
+class GraphWindowManager {
+private:
+    std::vector<std::unique_ptr<GraphWindow>> graphWindows;
+    std::thread messageLoopThread;
+    std::atomic<bool> running{ false };
+    HINSTANCE hInstance;
+    int nCmdShow;
+
+public:
+    GraphWindowManager(HINSTANCE hInst, int cmdShow)
+        : hInstance(hInst), nCmdShow(cmdShow) {
+    }
+
+    void Init() {
+        //StartMessageLoop();
+    }
+
+    void Graph(size_t index, const std::string& title, const std::vector<float>& yData, const std::vector<float>& xData = {}) {
+        EnsureWindow(index);
+        if (index < graphWindows.size()) {
+            if (xData.empty()) {
+                graphWindows[index]->Graph(title, yData);
+            }
+            else {
+                graphWindows[index]->Graph(title, yData, xData);
+            }
+        }
+        MSG msg = {};
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+            if (msg.message == WM_QUIT) {
+                running = false;
+                break;
+            }
+        }
+    }
+
+    void CloseAll() {
+        running = false;
+        PostQuitMessage(0);
+        if (messageLoopThread.joinable()) {
+            messageLoopThread.join();
+        }
+    }
+
+private:
+    void StartMessageLoop() {
+        running = true;
+        messageLoopThread = std::thread([this]() {
+            MSG msg = {};
+            while (running && g_activeWindowCount > 0) {
+                while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                    if (msg.message == WM_QUIT) {
+                        running = false;
+                        break;
+                    }
+                }
+                if (running && g_activeWindowCount > 0) {
+                    Sleep(10);
+                }
+            }
+            });
+    }
+
+    void EnsureWindow(size_t index) {
+        while (graphWindows.size() <= index) {
+            int width = 600 + static_cast<int>(index) * 50;
+            int height = 400 + static_cast<int>(index) * 50;
+            std::string title = "Graph " + std::to_string(index + 1);
+            graphWindows.push_back(std::make_unique<GraphWindow>(hInstance, width, height, title.c_str()));
+            graphWindows.back()->Show(nCmdShow);
+        }
     }
 };

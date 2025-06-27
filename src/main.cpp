@@ -1,4 +1,8 @@
-﻿#include <torch/torch.h>
+﻿#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
+#include <torch/torch.h>
 #include <iostream>
 #include <cuda_runtime.h>
 #include <random>
@@ -15,6 +19,7 @@
 #include "PPO.h"
 
 #include "minitaur/RobotSimulator.h"
+
 
 void train(
     Env& env,
@@ -39,7 +44,27 @@ void eval(Env& env, torch::Device& device, const std::string& actor_model, float
     model.eval_policy(false, fixedTimeStepS);
 }
 
-int main(int argc, char* argv[]) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    try {
+        GraphWindowManager manager(hInstance, nCmdShow);
+        manager.Init();
+
+        std::vector<float> y1 = { 10.0f, 12.5f, 15.0f };
+        manager.Graph(0, "Graph A", y1);
+
+        //std::vector<float> y2 = { 1.0f, 0.8f, 0.6f };
+        //std::vector<float> x2 = { 0.1f, 0.2f, 0.3f };
+        //manager.Graph(1, "Graph B", y2, x2);
+
+        Sleep(5000);
+
+        y1 = { 50.0f, 42.5f, 15.0f };
+        manager.Graph(0, "Graph A", y1);
+    }
+    catch (const std::runtime_error& e) {
+        MessageBoxA(NULL, e.what(), "Error", MB_ICONEXCLAMATION | MB_OK);
+        return 1;
+    }
 
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
