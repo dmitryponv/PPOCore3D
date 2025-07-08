@@ -22,7 +22,7 @@ class NormalMultivariate {
     torch::Device& device;
 public:
     NormalMultivariate(const torch::Tensor& mean, const torch::Tensor& std, torch::Device& device)
-        : mean(mean), stddev(std), var(std* std), log_std(std.log()), device(device) {
+        : mean(mean), stddev(std), var(std * std), log_std(std.log()), device(device) {
     }
 
     torch::Tensor sample() {
@@ -58,7 +58,7 @@ private:
 
     void _log_train();
 
-    torch::Tensor PPO::compute_rtgs(const vector<vector<float>>& batch_rewards);
+    torch::Tensor compute_rtgs(const std::vector<std::vector<float>>& batch_rewards);
 
     std::pair<torch::Tensor, torch::Tensor> get_action(const torch::Tensor& obs_tensor);
 
@@ -85,10 +85,7 @@ private:
         std::string,
         float,
         int,
-        //std::vector<float>,
-        //std::vector<int>,
         std::vector<torch::Tensor>,
-        //std::vector<std::vector<float>>,
         long long,
         torch::Tensor,
         std::vector<std::vector<std::vector<float>>>,

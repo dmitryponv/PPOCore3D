@@ -63,8 +63,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     graph_manager.Init();
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
-        {"timesteps_per_batch", 1000},
-        {"max_timesteps_per_episode", 500},
+        {"timesteps_per_batch", 10000},
+        {"max_timesteps_per_episode", 5000},
         {"gamma", 0.99},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
@@ -99,14 +99,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             std::cout << "Failed to get device properties.\n";
         }
 
-        device = torch::Device(torch::kCUDA, 0);
+        //device = torch::Device(torch::kCUDA, 0);
     }
     else {
         std::cout << "CUDA is NOT available. CPU will be used.\n";
     }
 
     try {
-        AgentTargetEnv env(device, 2);
+        HumanoidEnv env(device, 1);
         if (true) {
             //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
             train(env, hyperparameters, device, graph_manager, "", "");

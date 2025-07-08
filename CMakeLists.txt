@@ -45,7 +45,7 @@ set(RobotSimulator_SRCS
     include/bullet/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp
 )
 
-add_executable(PPOCore3D WIN32 src/main.cpp src/ppo.cpp src/env.cpp ${RobotSimulator_SRCS})
+add_executable(PPOCore3D WIN32 src/main.cpp src/ppo.cpp ${RobotSimulator_SRCS})
 set_property(TARGET PPOCore3D PROPERTY CXX_STANDARD 17)
 target_link_libraries(PPOCore3D "${TORCH_LIBRARIES}")
 
