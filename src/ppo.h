@@ -58,7 +58,7 @@ private:
 
     void _log_train();
 
-    torch::Tensor compute_rtgs(const std::vector<std::vector<float>>& batch_rewards);
+    torch::Tensor compute_rtgs(const std::vector<float>& rewards, int length);
 
     std::pair<torch::Tensor, torch::Tensor> get_action(const torch::Tensor& obs_tensor);
 
