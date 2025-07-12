@@ -18,7 +18,10 @@
 
 #include "PPO.h"
 
-#include "minitaur/RobotSimulator.h"
+#include "envs/AgentTargetEnv.h"
+#include "envs/PendulumEnv.h"
+#include "envs/RobotEnv.h"
+#include "envs/HumanoidEnv.h"
 
 
 void train(
@@ -105,7 +108,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        PendulumEnv env(device, 10);
+        HumanoidEnv env(device, 2);
         if (true) {
             //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
             train(env, hyperparameters, device, graph_manager, "", "");
