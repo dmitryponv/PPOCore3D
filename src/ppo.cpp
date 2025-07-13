@@ -334,9 +334,14 @@ void PPO::learn(int total_timesteps) {
 		int i_so_far = 0;
 
 		while (t_so_far < total_timesteps) {
-			auto [batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lengths] = rollout_train();
+			auto [batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lengths_vec] = rollout_train();
 
-			t_so_far += batch_lengths.sum().item<int>();
+			// Calculate total timesteps from batch_lengths_vec using std::accumulate
+			int total_batch_timesteps = std::accumulate(batch_lengths_vec.begin(), batch_lengths_vec.end(), 0,
+				[](int sum, const std::vector<int>& lengths) {
+					return sum + std::accumulate(lengths.begin(), lengths.end(), 0);
+				});
+			t_so_far += total_batch_timesteps;
 			i_so_far += 1;
 
 			float frac = (t_so_far - 1.0f) / total_timesteps;
@@ -357,7 +362,7 @@ void PPO::learn(int total_timesteps) {
 			print_tensor_inline("batch_acts", batch_acts);
 			print_tensor_inline("batch_log_probs", batch_log_probs);
 			print_tensor_inline("batch_rtgs", batch_rtgs);
-			print_tensor_inline("batch_lengths", batch_lengths);
+			// batch_lengths_vec is now a vector<vector<int>>, not a tensor
 			print_tensor_inline("V", V);
 			print_tensor_inline("A_k", A_k);
 
@@ -414,7 +419,7 @@ void PPO::learn(int total_timesteps) {
 }
 
 
-tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> PPO::rollout_train() {
+tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<std::vector<int>>> PPO::rollout_train() {
 	try {
 		int grid_count = env.GetGridCount();
 
@@ -476,11 +481,10 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 				rtgs.push_back(this->compute_rtgs(rewards));
 			return rtgs;
 			}());
-		torch::Tensor batch_lengths = torch::tensor(flatten(batch_lengths_vec), torch::kInt64);
 		logger["batch_rewards"] = batch_rewards;
 		logger["batch_lengths"] = batch_lengths_vec;
 
-		return { batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lengths };
+		return { batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lengths_vec };
 	}
 	catch (const std::exception& e) {
 		std::cerr << "Exception in rollout_train: " << e.what() << std::endl;

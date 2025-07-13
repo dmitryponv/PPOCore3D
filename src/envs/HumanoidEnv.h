@@ -153,7 +153,7 @@ public:
 
             btVector3 target_pos_check(0.0f, 0.0f, 2.0f);
             float dist = (head_pos - target_pos_check).length();
-            float reward = dist - 1.0f;
+            float reward = dist - 2.0f;
             bool done = dist > 30;
 
             results.push_back({ get_observation(id), reward, done, false });

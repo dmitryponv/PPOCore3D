@@ -1,6 +1,8 @@
 #pragma once
 #include "RobotSimulator.h"
 #include "env.h"
+#include "../CommonInterfaces/CommonGUIHelperInterface.h"
+#include "../CommonInterfaces/CommonExampleInterface.h"
 
 class AgentTargetEnv : public Env {
 private:
@@ -10,8 +12,6 @@ private:
 
     std::vector<int> agent_ids;
     std::vector<int> target_ids;
-    std::vector<std::vector<float>> agent_positions;
-    std::vector<std::vector<float>> target_positions;
 
     std::mt19937 rng;
     std::uniform_real_distribution<float> dist_x;
@@ -64,8 +64,6 @@ public:
 
                 agent_ids.push_back(agent_id);
                 target_ids.push_back(target_id);
-                agent_positions.emplace_back(3);
-                target_positions.emplace_back(3);
             }
         }
     }
@@ -103,9 +101,6 @@ public:
         sim->resetBasePositionAndOrientation(target_ids[index], target_world_pos, btQuaternion(0, 0, 0, 1));
         sim->resetBaseVelocity(target_ids[index], btVector3(0, 0, 0), btVector3(0, 0, 0));
 
-        agent_positions[index] = { agent_world_pos.getX(), agent_world_pos.getY(), agent_world_pos.getZ() };
-        target_positions[index] = { target_world_pos.getX(), target_world_pos.getY(), target_world_pos.getZ() };
-
         return get_observation(index);
     }
 
@@ -129,19 +124,16 @@ public:
 
             sim->resetBasePositionAndOrientation(agent_ids[i], agent_base_pos, agent_q);
 
-            agent_positions[i] = { agent_base_pos.getX(), agent_base_pos.getY(), agent_base_pos.getZ() };
-            target_positions[i] = { target_base_pos.getX(), target_base_pos.getY(), target_base_pos.getZ() };
-
-            float dist_x = agent_positions[i][0] - target_positions[i][0];
-            float dist_y = agent_positions[i][1] - target_positions[i][1];
+            float dist_x = agent_base_pos.getX() - target_base_pos.getX();
+            float dist_y = agent_base_pos.getY() - target_base_pos.getY();
             float distance = std::sqrt(dist_x * dist_x + dist_y * dist_y);
 
             float reward = -0.01f * distance - 0.01f;
             bool done = false;
 
             if (distance < 2.0f) reward += 5.0f, done = true;
-            if (agent_positions[i][2] < 0.0f || target_positions[i][2] < 0.0f) reward -= 5.0f, done = true;
-            if (dx == 0.0f && dy == 0.0f) reward -= 5.0f, done = true;
+            //if (agent_positions[i][2] < 0.0f || target_positions[i][2] < 0.0f) reward -= 5.0f, done = true;
+            //if (dx == 0.0f && dy == 0.0f) reward -= 5.0f, done = true;
             //if (agent_positions[i][0] < x_min || agent_positions[i][0] > x_max ||
             //    agent_positions[i][1] < y_min || agent_positions[i][1] > y_max) reward -= 5.0f, done = true;
 
@@ -152,10 +144,16 @@ public:
     }
 
     void render() override {
-        for (size_t i = 0; i < agent_positions.size(); ++i) {
+        for (size_t i = 0; i < agent_ids.size(); ++i) {
+            btVector3 agent_base_pos, target_base_pos;
+            btQuaternion agent_q, target_q;
+            
+            sim->getBasePositionAndOrientation(agent_ids[i], agent_base_pos, agent_q);
+            sim->getBasePositionAndOrientation(target_ids[i], target_base_pos, target_q);
+            
             printf("Agent %zu: (%.2f, %.2f), Target: (%.2f, %.2f)\n",
-                i, agent_positions[i][0], agent_positions[i][1],
-                target_positions[i][0], target_positions[i][1]);
+                i, agent_base_pos.getX(), agent_base_pos.getY(),
+                target_base_pos.getX(), target_base_pos.getY());
         }
     }
 
@@ -164,9 +162,15 @@ private:
     b3RobotSimulatorClientAPI* sim;
 
     torch::Tensor get_observation(int index) const {
+        btVector3 agent_base_pos, target_base_pos;
+        btQuaternion agent_q, target_q;
+        
+        sim->getBasePositionAndOrientation(agent_ids[index], agent_base_pos, agent_q);
+        sim->getBasePositionAndOrientation(target_ids[index], target_base_pos, target_q);
+        
         return torch::tensor({
-            agent_positions[index][0], agent_positions[index][1],
-            target_positions[index][0], target_positions[index][1]
+            agent_base_pos.getX(), agent_base_pos.getY(),
+            target_base_pos.getX(), target_base_pos.getY()
             }).to(mDevice);
     }
 };

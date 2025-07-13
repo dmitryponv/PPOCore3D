@@ -64,7 +64,7 @@ private:
 
     std::pair<torch::Tensor, torch::Tensor> evaluate(const torch::Tensor& batch_obs, const torch::Tensor& batch_acts);
 
-    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> rollout_train();
+    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<std::vector<int>>> rollout_train();
 
     Env& env;
     GraphWindowManager& graph_manager;
