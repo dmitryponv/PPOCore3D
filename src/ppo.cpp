@@ -230,7 +230,7 @@ void PPO::_log_train() {
 		if (avg_ep_rews > -5.0f) {
 			std::cout << "PAUSED: Average episodic return is " << avg_ep_rews << " (greater than -5)" << std::endl;
 			std::cout << "Press Enter to continue..." << std::endl;
-			std::cin.get();
+			//std::cin.get();
 		}
 
 		std::vector<float> y1 = { 10.0f, 12.5f, 15.0f };
@@ -294,16 +294,17 @@ pair<torch::Tensor, torch::Tensor> PPO::evaluate(const torch::Tensor& batch_obs,
 	}
 }
 
-torch::Tensor PPO::compute_rtgs(const vector<float>& rewards, int length) {
+torch::Tensor PPO::compute_rtgs(const vector<vector<float>>& batch_rewards) {
 	try {
 		vector<float> batch_rtgs;
+
+		for (auto it = batch_rewards.rbegin(); it != batch_rewards.rend(); ++it) {
+			const auto& ep_rews = *it;
 		float discounted_reward = 0;
-		
-		// Only process the last 'length' rewards
-		int start_idx = std::max(0, static_cast<int>(rewards.size()) - length);
-		for (int i = static_cast<int>(rewards.size()) - 1; i >= start_idx; --i) {
-			discounted_reward = rewards[i] + discounted_reward * gamma;
+			for (auto rit = ep_rews.rbegin(); rit != ep_rews.rend(); ++rit) {
+				discounted_reward = *rit + discounted_reward * gamma;
 			batch_rtgs.insert(batch_rtgs.begin(), discounted_reward);
+		}
 		}
 
 		return torch::tensor(batch_rtgs, torch::kFloat).to(device);
@@ -457,7 +458,7 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 					batch_log_probs_vec[i].push_back(log_probs[i]);
 					if (max_timesteps_per_episode == ep_t+1 || done)
 					{
-						batch_lengths_vec[i].push_back(ep_rews[i].size() - (batch_lengths_vec[i].empty() ? 0 : batch_lengths_vec[i][batch_lengths_vec[i].size() - 1]));
+						batch_lengths_vec[i].push_back(ep_rews[i].size());
 						batch_rewards[i].push_back(ep_rews[i]);
 						observations[i] = env.reset(i);
 						ep_rews[i].clear();
@@ -466,20 +467,16 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 			}
 		}
 
-		torch::Tensor batch_obs = torch::stack(flatten(batch_obs_vec)).to(torch::kFloat).to(device);
-		torch::Tensor batch_acts = torch::stack(flatten(batch_acts_vec)).to(torch::kFloat).to(device);
-		torch::Tensor batch_log_probs = torch::stack(flatten(batch_log_probs_vec)).to(torch::kFloat).to(device);
+		torch::Tensor batch_obs = torch::stack(flatten(batch_obs_vec)).to(torch::kFloat);
+		torch::Tensor batch_acts = torch::stack(flatten(batch_acts_vec)).to(torch::kFloat);
+		torch::Tensor batch_log_probs = torch::stack(flatten(batch_log_probs_vec)).to(torch::kFloat);
+		torch::Tensor batch_rtgs = torch::cat([this, &batch_rewards]() {
 		std::vector<torch::Tensor> rtgs;
-		for (size_t i = 0; i < batch_rewards.size(); ++i) {
-			int length = batch_lengths_vec[i].empty() ? 0 : batch_lengths_vec[i][batch_lengths_vec[i].size() - 1];
-			// Get the last episode rewards from batch_rewards[i]
-			if (!batch_rewards[i].empty()) {
-				const auto& last_episode_rewards = batch_rewards[i].back();
-				rtgs.push_back(this->compute_rtgs(last_episode_rewards, length));
-			}
-		}
-		torch::Tensor batch_rtgs = torch::cat(rtgs).to(device);
-		torch::Tensor batch_lengths = torch::tensor(flatten(batch_lengths_vec), torch::kInt64).to(device);
+			for (const auto& rewards : batch_rewards)
+				rtgs.push_back(this->compute_rtgs(rewards));
+			return rtgs;
+			}());
+		torch::Tensor batch_lengths = torch::tensor(flatten(batch_lengths_vec), torch::kInt64);
 		logger["batch_rewards"] = batch_rewards;
 		logger["batch_lengths"] = batch_lengths_vec;
 
