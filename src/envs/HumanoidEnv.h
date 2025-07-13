@@ -235,7 +235,6 @@ public:
         static int selected_humanoid_id = -1;
         static int selected_joint_id = -1;
         static btVector3 last_mouse_pos;
-        static std::vector<float> fixed_joint_angles; // Store fixed joint angles
         
         printf("Animation mode started. Press ESC to exit.\n");
         
@@ -276,22 +275,6 @@ public:
                             // For simplicity, select the first joint
                             selected_joint_id = 0;
                             
-                            // Store current joint angles to fix them in place
-                            fixed_joint_angles.clear();
-                            int num_joints = sim->getNumJoints(selected_humanoid_id);
-                            for (int j = 0; j < num_joints; j++) {
-                                b3LinkState link_state;
-                                sim->getLinkState(selected_humanoid_id, j, 1, 0, &link_state);
-                                float angle = 0.0f;
-                                if (link_state.m_worldOrientation[0] != 0.0f || link_state.m_worldOrientation[1] != 0.0f || 
-                                    link_state.m_worldOrientation[2] != 0.0f || link_state.m_worldOrientation[3] != 0.0f) {
-                                    float qw = link_state.m_worldOrientation[3];
-                                    float qz = link_state.m_worldOrientation[2];
-                                    angle = 2.0f * std::atan2(qz, qw);
-                                }
-                                fixed_joint_angles.push_back(angle);
-                            }
-                            
                             mouse_picking_active = true;
                             last_mouse_pos = btVector3(event.m_mousePosX, event.m_mousePosY, 0);
                             printf("Selected joint %d on humanoid %d\n", selected_joint_id, selected_humanoid_id);
@@ -303,7 +286,6 @@ public:
                         mouse_picking_active = false;
                         selected_humanoid_id = -1;
                         selected_joint_id = -1;
-                        fixed_joint_angles.clear();
                         printf("Released joint selection\n");
                     }
                 }
@@ -334,29 +316,13 @@ public:
                             }
                             float new_angle = current_angle + angle_change;
                             
-                            // Apply joint control to all joints - fix others in place
-                            int num_joints = sim->getNumJoints(selected_humanoid_id);
-                            for (int j = 0; j < num_joints; j++) {
-                                b3JointInfo joint_info;
-                                sim->getJointInfo(selected_humanoid_id, j, &joint_info);
-                                
-                                if (joint_info.m_jointType == JointType::eRevoluteType) {
-                                    b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-                                    motorArgs.m_maxTorqueValue = 200.0f;
-                                    
-                                    if (j == selected_joint_id) {
-                                        // Animate the selected joint
-                                        motorArgs.m_targetPosition = new_angle;
-                                        motorArgs.m_targetVelocity = 1.0f;
-                                    } else {
-                                        // Fix other joints in their current positions
-                                        motorArgs.m_targetPosition = fixed_joint_angles[j];
-                                        motorArgs.m_targetVelocity = 0.0f; // No movement
-                                    }
-                                    
-                                    sim->setJointMotorControl(selected_humanoid_id, j, motorArgs);
-                                }
-                            }
+                            // Set joint motor to new position
+                            b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
+                            motorArgs.m_maxTorqueValue = 200.0f;
+                            motorArgs.m_targetPosition = new_angle;
+                            motorArgs.m_targetVelocity = 1.0f;
+                            
+                            sim->setJointMotorControl(selected_humanoid_id, selected_joint_id, motorArgs);
                             
                             printf("Joint %d angle: %.3f\n", selected_joint_id, new_angle);
                         }
