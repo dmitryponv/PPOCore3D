@@ -169,6 +169,10 @@ public:
         // No-op specific rendering for RobotEnv in this setup, as GUI connection handles visual
     }
 
+    void animate(int anim_skip_steps = 1) override {
+        // Empty implementation
+    }
+
 private:
     torch::Device& mDevice;
     b3RobotSimulatorClientAPI* sim;

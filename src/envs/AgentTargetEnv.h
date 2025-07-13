@@ -157,6 +157,10 @@ public:
         }
     }
 
+    void animate(int anim_skip_steps = 1) override {
+        // Empty implementation
+    }
+
 private:
     torch::Device& mDevice;
     b3RobotSimulatorClientAPI* sim;

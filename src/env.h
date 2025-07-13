@@ -33,6 +33,9 @@ public:
 
     virtual void render() = 0;
 
+    // Animate a model with specified skip steps
+    virtual void animate(int anim_skip_steps = 1) = 0;
+
     virtual Space observation_space() const = 0;
 
     virtual Space action_space() const = 0;

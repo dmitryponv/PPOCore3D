@@ -48,6 +48,13 @@ void eval(Env& env, torch::Device& device, const std::string& actor_model, float
     model.eval_policy(false, fixedTimeStepS);
 }
 
+void animate(Env& env, int anim_skip_steps = 1) {
+    std::cout << "Animating with skip steps: " << anim_skip_steps << std::endl;
+    
+    // Call the environment's animate function
+    env.animate(anim_skip_steps);
+}
+
 void ShowConsole() {
     AllocConsole();
     FILE* fp;
@@ -109,13 +116,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     try {
         HumanoidEnv env(device, 1);
-        if (false) {
-            //train(env, hyperparameters, device, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
-            train(env, hyperparameters, device, graph_manager, "", "");
-        }
-        else {
-            float fixedTimeStepS = 1. / 20.;
-            eval(env, device, "./models/ppo_actor.pt", fixedTimeStepS); // only load the actor model
+        
+        // Mode selection - 0: train, 1: eval, 2: animate
+        int mode = 2; // 0=train, 1=eval, 2=animate
+        int anim_skip_steps = 1; // For animate mode
+        
+        switch (mode) {
+            case 0: // train
+                train(env, hyperparameters, device, graph_manager, "", "");
+                break;
+            case 2: // animate
+                animate(env, anim_skip_steps);
+                break;
+            case 1: // eval
+            default:
+                {
+                    float fixedTimeStepS = 1. / 20.;
+                    eval(env, device, "./models/ppo_actor.pt", fixedTimeStepS);
+                }
+                break;
         }
     }
     catch (const std::exception& e) {
