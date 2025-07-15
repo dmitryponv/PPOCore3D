@@ -10,6 +10,12 @@ private:
     b3RobotSimulatorClientAPI* sim;
     std::vector<int> humanoid_ids;
     torch::Device& mDevice;
+    // std::vector<std::vector<b3LinkState>> saved_link_states; // Remove unused
+    // std::vector<btVector3> saved_base_positions; // Remove unused
+    // std::vector<btQuaternion> saved_base_orientations; // Remove unused
+    std::vector<double> saved_joint_positions; // Store joint positions
+    int selected_joint_index = 0; // Track selected joint
+    int selected_humanoid_id = 0; // Track selected humanoid
 public:
     HumanoidEnv(torch::Device& device, int grid_size = 1, float grid_space = 40.0f)
         : Env(), // Call base class constructor
@@ -198,138 +204,116 @@ public:
         // No-op
     }
 
-    // Raycast function similar to the provided example
-    int raycast(float mouseX, float mouseY) {
-        // Convert mouse coordinates to world ray
-        // For simplicity, we'll create a ray from the camera position
-        btVector3 rayFrom(mouseX, mouseY, 10.0f);
-        btVector3 rayTo(mouseX, mouseY, -10.0f);
-        
-        // Use the collision world for raycasting
-        btCollisionWorld::ClosestRayResultCallback rayCallback(rayFrom, rayTo);
-        // Note: We need access to collisionWorld_ from the simulator
-        // For now, we'll use a simplified approach
-        
-        // Check if any humanoid is near the ray
-        for (int humanoid_id : humanoid_ids) {
-            btVector3 base_pos;
-            btQuaternion base_ori;
-            sim->getBasePositionAndOrientation(humanoid_id, base_pos, base_ori);
-            
-            // Simple distance check - if mouse is close to humanoid base position
-            float dist_x = mouseX - base_pos.getX();
-            float dist_y = mouseY - base_pos.getY();
-            float distance = std::sqrt(dist_x * dist_x + dist_y * dist_y);
-            
-            if (distance < 5.0f) { // Within 5 units
-                return humanoid_id;
+    void modifySelectedJointPosition(double delta) {
+        try {
+            if (humanoid_ids.empty()) {
+                printf("No humanoids available.\n");
+                return;
             }
+            if (selected_humanoid_id >= humanoid_ids.size()) {
+                selected_humanoid_id = 0;
+            }
+            int humanoid_id = humanoid_ids[selected_humanoid_id];
+            int num_joints = sim->getNumJoints(humanoid_id);
+            if (selected_joint_index >= num_joints) {
+                selected_joint_index = 0;
+            }
+            
+            // Get current joint position
+            b3JointSensorState state;
+            if (sim->getJointState(humanoid_id, selected_joint_index, &state)) {
+                double new_position = state.m_jointPosition + delta;
+                
+                // Apply the new position
+                b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
+                motorArgs.m_targetPosition = new_position;
+                motorArgs.m_targetVelocity = 1.0;
+                motorArgs.m_maxTorqueValue = 100.0;
+                sim->setJointMotorControl(humanoid_id, selected_joint_index, motorArgs);
+                
+                printf("Joint %d position: %.3f\n", selected_joint_index, new_position);
+            }
+        } catch (const std::exception& e) {
+            printf("Exception in modifySelectedJointPosition: %s\n", e.what());
+        } catch (...) {
+            printf("Unknown exception in modifySelectedJointPosition.\n");
         }
-        
-        return -1; // No hit
     }
 
     void animate(int anim_skip_steps = 1) override {
         // Mouse interaction for joint manipulation
         static bool mouse_picking_active = false;
-        static int selected_humanoid_id = -1;
-        static int selected_joint_id = -1;
         static btVector3 last_mouse_pos;
         
         printf("Animation mode started. Press ESC to exit.\n");
+        printf("Press 'Q' to save joint positions, 'E' to reset to saved positions.\n");
+        printf("Use A/D to select joint, W/S to modify position.\n");
         
         // Run animation loop until escape is pressed
+        using clock = std::chrono::steady_clock;
+        auto last_event_time = clock::now();
         while (true) {
             // Check for escape key
+            
+            auto now = clock::now();
+            double elapsed = std::chrono::duration<double>(now - last_event_time).count();
             b3KeyboardEventsData keyboardEvents;
             sim->getKeyboardEvents(&keyboardEvents);
-            
-            for (int i = 0; i < keyboardEvents.m_numKeyboardEvents; i++) {
-                const b3KeyboardEvent& event = keyboardEvents.m_keyboardEvents[i];
-                if (event.m_keyCode == 27) { // ESC key
+            if (0 < keyboardEvents.m_numKeyboardEvents && elapsed >= 0.2) {
+                const b3KeyboardEvent& event = keyboardEvents.m_keyboardEvents[0];
+                
+                if (event.m_keyCode == 27 && event.m_keyState == 1) { // ESC key
                     printf("Animation mode exited.\n");
                     return;
                 }
+                else if (event.m_keyCode == 113 && event.m_keyState == 1) { // 'Q' key - Save positions
+                    saveJointPositions();
+                    printf("Joint positions saved.\n");
+                }
+                else if (event.m_keyCode == 101 && event.m_keyState == 1) { // 'E' key - Reset positions
+                    resetJointPositions();
+                    printf("Joint positions reset to saved state.\n");
+                }
+                else if (event.m_keyCode == 97 && event.m_keyState == 1) { // 'A' key - Previous joint
+                    if (humanoid_ids.empty()) {
+                        printf("No humanoids available.\n");
+                    } else {
+                        int humanoid_id = humanoid_ids[selected_humanoid_id];
+                        int num_joints = sim->getNumJoints(humanoid_id);
+                        selected_joint_index = (selected_joint_index - 1 + num_joints) % num_joints;
+                        printf("Selected joint: %d\n", selected_joint_index);
+                    }
+                }
+                else if (event.m_keyCode == 100 && event.m_keyState == 1) { // 'D' key - Next joint
+                    if (humanoid_ids.empty()) {
+                        printf("No humanoids available.\n");
+                    } else {
+                        int humanoid_id = humanoid_ids[selected_humanoid_id];
+                        int num_joints = sim->getNumJoints(humanoid_id);
+                        selected_joint_index = (selected_joint_index + 1) % num_joints;
+                        printf("Selected joint: %d\n", selected_joint_index);
+                    }
+                }
+                else if (event.m_keyCode == 119 && event.m_keyState == 1) { // 'W' key - Increase position
+                    modifySelectedJointPosition(0.1);
+                }
+                else if (event.m_keyCode == 115 && event.m_keyState == 1) { // 'S' key - Decrease position
+                    modifySelectedJointPosition(-0.1);
+                }
+                last_event_time = clock::now();
             }
-            
-            // Get mouse state from the simulator
-            b3MouseEventsData mouseEvents;
-            sim->getMouseEvents(&mouseEvents);
-            
-            // Handle mouse events for joint picking and manipulation
-            for (int i = 0; i < mouseEvents.m_numMouseEvents; i++) {
-                const b3MouseEvent& event = mouseEvents.m_mouseEvents[i];
+                        
+            // Freeze base position and velocity for all loaded URDF humanoids
+            for (int humanoid_id : humanoid_ids) {
+                // Set the same angle as in reset function
+                int i = 0; // Use first grid position for simplicity
+                int j = 0;
+                btVector3 start_pos(i * grid_space, j * grid_space, 0.5);
+                btQuaternion start_ori;
+                start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
                 
-                if (event.m_eventType == 1) { // MOUSE_BUTTON_CLICKED
-                    if (event.m_buttonIndex == 0) { // Left mouse button
-                        // Perform raycast to pick joint
-                        btVector3 rayFromWorld(event.m_mousePosX, event.m_mousePosY, 10.0f);
-                        btVector3 rayToWorld(event.m_mousePosX, event.m_mousePosY, -10.0f);
-                        
-                        // Use raycast instead of pick body
-                        int hit_humanoid = raycast(event.m_mousePosX, event.m_mousePosY);
-                        
-                        if (hit_humanoid >= 0) {
-                            selected_humanoid_id = hit_humanoid;
-                            
-                            // For simplicity, select the first joint
-                            selected_joint_id = 0;
-                            
-                            mouse_picking_active = true;
-                            last_mouse_pos = btVector3(event.m_mousePosX, event.m_mousePosY, 0);
-                            printf("Selected joint %d on humanoid %d\n", selected_joint_id, selected_humanoid_id);
-                        }
-                    }
-                }
-                else if (event.m_eventType == 2) { // MOUSE_BUTTON_RELEASED
-                    if (event.m_buttonIndex == 0) { // Left mouse button released
-                        mouse_picking_active = false;
-                        selected_humanoid_id = -1;
-                        selected_joint_id = -1;
-                        printf("Released joint selection\n");
-                    }
-                }
-                else if (event.m_eventType == 3 && mouse_picking_active) { // MOUSE_MOVED
-                    // Handle joint manipulation when mouse is dragged
-                    if (selected_humanoid_id >= 0 && selected_joint_id >= 0) {
-                        btVector3 current_mouse_pos(event.m_mousePosX, event.m_mousePosY, 0);
-                        btVector3 mouse_delta = current_mouse_pos - last_mouse_pos;
-                        
-                        // Get current joint state
-                        b3JointInfo jointInfo;
-                        sim->getJointInfo(selected_humanoid_id, selected_joint_id, &jointInfo);
-                        
-                        if (jointInfo.m_jointType == JointType::eRevoluteType) {
-                            // Calculate joint angle change based on mouse movement
-                            float angle_change = mouse_delta.getX() * 0.01f; // Sensitivity
-                            
-                            // Get current joint angle using link state
-                            b3LinkState link_state;
-                            sim->getLinkState(selected_humanoid_id, selected_joint_id, 1, 0, &link_state);
-                            // For a revolute joint, estimate the angle from orientation (assuming rotation about Z)
-                            float current_angle = 0.0f;
-                            if (link_state.m_worldOrientation[0] != 0.0f || link_state.m_worldOrientation[1] != 0.0f || link_state.m_worldOrientation[2] != 0.0f || link_state.m_worldOrientation[3] != 0.0f) {
-                                // Convert quaternion to angle (assuming Z axis)
-                                float qw = link_state.m_worldOrientation[3];
-                                float qz = link_state.m_worldOrientation[2];
-                                current_angle = 2.0f * std::atan2(qz, qw); // Only valid for Z axis rotation
-                            }
-                            float new_angle = current_angle + angle_change;
-                            
-                            // Set joint motor to new position
-                            b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-                            motorArgs.m_maxTorqueValue = 200.0f;
-                            motorArgs.m_targetPosition = new_angle;
-                            motorArgs.m_targetVelocity = 1.0f;
-                            
-                            sim->setJointMotorControl(selected_humanoid_id, selected_joint_id, motorArgs);
-                            
-                            printf("Joint %d angle: %.3f\n", selected_joint_id, new_angle);
-                        }
-                        
-                        last_mouse_pos = current_mouse_pos;
-                    }
-                }
+                sim->resetBasePositionAndOrientation(humanoid_id, start_pos, start_ori);
+                sim->resetBaseVelocity(humanoid_id, btVector3(0, 0, 0), btVector3(0, 0, 0));
             }
             
             // Step simulation to apply joint changes
@@ -337,6 +321,58 @@ public:
             
             // Small delay to prevent excessive CPU usage
             std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
+        }
+    }
+
+    // External function to save joint positions
+    void saveJointPositions() {
+        try {
+            if (humanoid_ids.empty()) {
+                printf("No humanoids available to save.\n");
+                return;
+            }
+            saved_joint_positions.clear();
+            int humanoid_id = humanoid_ids[0]; // Only one humanoid
+            int num_joints = sim->getNumJoints(humanoid_id);
+            for (int j = 0; j < num_joints; ++j) {
+                b3JointSensorState state;
+                if (sim->getJointState(humanoid_id, j, &state)) {
+                    saved_joint_positions.push_back(state.m_jointPosition);
+                } else {
+                    saved_joint_positions.push_back(0.0);
+                }
+            }
+        } catch (const std::exception& e) {
+            printf("Exception in saveJointPositions: %s\n", e.what());
+        } catch (...) {
+            printf("Unknown exception in saveJointPositions.\n");
+        }
+    }
+
+    // External function to reset joint positions
+    void resetJointPositions() {
+        try {
+            if (humanoid_ids.empty()) {
+                printf("No humanoids available to reset.\n");
+                return;
+            }
+            if (saved_joint_positions.empty()) {
+                printf("No saved positions to reset to.\n");
+                return;
+            }
+            int humanoid_id = humanoid_ids[0]; // Only one humanoid
+            int num_joints = sim->getNumJoints(humanoid_id);
+            for (int j = 0; j < num_joints; ++j) {
+                b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
+                motorArgs.m_targetPosition = saved_joint_positions[j];
+                motorArgs.m_targetVelocity = 1.0; // Large value for instant movement
+                motorArgs.m_maxTorqueValue = 100.0; // Large torque for instant movement
+                sim->setJointMotorControl(humanoid_id, j, motorArgs);
+            }
+        } catch (const std::exception& e) {
+            printf("Exception in resetJointPositions: %s\n", e.what());
+        } catch (...) {
+            printf("Unknown exception in resetJointPositions.\n");
         }
     }
 }; 
