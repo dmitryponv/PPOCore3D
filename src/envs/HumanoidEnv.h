@@ -16,6 +16,7 @@ private:
     std::vector<double> saved_joint_positions; // Store joint positions
     int selected_joint_index = 0; // Track selected joint
     int selected_humanoid_id = 0; // Track selected humanoid
+    int current_animation_frame = 0; // Track current animation frame
 public:
     HumanoidEnv(torch::Device& device, int grid_size = 1, float grid_space = 40.0f)
         : Env(), // Call base class constructor
@@ -151,18 +152,33 @@ public:
             int id = humanoid_ids[i];
             int num_joints = sim->getNumJoints(id);
 
-            b3LinkState head_state;
-            sim->getLinkState(id, num_joints - 1, 0, 0, &head_state);
+            // Find the link index for "torso_object"
+            int torso_link_index = -1;
+            for (int j = 0; j < num_joints; ++j) {
+                b3JointInfo jointInfo;
+                if (sim->getJointInfo(id, j, &jointInfo)) {
+                    if (std::string(jointInfo.m_linkName) == "head_object") {
+                        torso_link_index = j;
+                        break;
+                    }
+                }
+            }
 
-            btVector3 head_pos(
-                head_state.m_worldPosition[0],
-                head_state.m_worldPosition[1],
-                head_state.m_worldPosition[2]
-            );
+            btVector3 torso_pos(0, 0, 0);
+            if (torso_link_index != -1) {
+                b3LinkState torso_state;
+                sim->getLinkState(id, torso_link_index, 1, 0, &torso_state);
+                torso_pos = btVector3(
+                    torso_state.m_worldPosition[0],
+                    torso_state.m_worldPosition[1],
+                    torso_state.m_worldPosition[2]
+                );
+            }
 
             btVector3 target_pos_check(0.0f, 0.0f, 2.0f);
-            float dist = (head_pos - target_pos_check).length();
-            float reward = dist - 2.0f;
+            float dist = (torso_pos - target_pos_check).length();
+            float reward = dist - 1.5f;
+            reward = (torso_pos[2] - target_pos_check[2]);
             bool done = dist > 30;
 
             results.push_back({ get_observation(id), reward, done, false });
@@ -246,8 +262,9 @@ public:
         static btVector3 last_mouse_pos;
         
         printf("Animation mode started. Press ESC to exit.\n");
-        printf("Press 'Q' to save joint positions, 'E' to reset to saved positions.\n");
-        printf("Use A/D to select joint, W/S to modify position.\n");
+        printf("Press 'S' to save joint positions, 'R' to reset to saved positions.\n");
+        printf("Use 1/2 to select joint, 3/4 to modify position.\n");
+        printf("Use 5/6 to select animation frame.\n");
         
         // Run animation loop until escape is pressed
         using clock = std::chrono::steady_clock;
@@ -259,46 +276,86 @@ public:
             double elapsed = std::chrono::duration<double>(now - last_event_time).count();
             b3KeyboardEventsData keyboardEvents;
             sim->getKeyboardEvents(&keyboardEvents);
-            if (0 < keyboardEvents.m_numKeyboardEvents && elapsed >= 0.2) {
+            if (0 < keyboardEvents.m_numKeyboardEvents && elapsed >= 0.1) {
                 const b3KeyboardEvent& event = keyboardEvents.m_keyboardEvents[0];
                 
                 if (event.m_keyCode == 27 && event.m_keyState == 1) { // ESC key
                     printf("Animation mode exited.\n");
                     return;
                 }
-                else if (event.m_keyCode == 113 && event.m_keyState == 1) { // 'Q' key - Save positions
+                else if (event.m_keyCode == 115 && event.m_keyState == 1) { // 'S' key - Save positions
                     saveJointPositions();
                     printf("Joint positions saved.\n");
                 }
-                else if (event.m_keyCode == 101 && event.m_keyState == 1) { // 'E' key - Reset positions
+                else if (event.m_keyCode == 114 && event.m_keyState == 1) { // 'R' key - Reset positions
                     resetJointPositions();
                     printf("Joint positions reset to saved state.\n");
                 }
-                else if (event.m_keyCode == 97 && event.m_keyState == 1) { // 'A' key - Previous joint
+                else if (event.m_keyCode == 49 && event.m_keyState == 1) { // '1' key - Previous joint
                     if (humanoid_ids.empty()) {
                         printf("No humanoids available.\n");
                     } else {
                         int humanoid_id = humanoid_ids[selected_humanoid_id];
                         int num_joints = sim->getNumJoints(humanoid_id);
                         selected_joint_index = (selected_joint_index - 1 + num_joints) % num_joints;
-                        printf("Selected joint: %d\n", selected_joint_index);
+                        
+                        // Get and print the joint name
+                        b3JointInfo jointInfo;
+                        if (sim->getJointInfo(humanoid_id, selected_joint_index, &jointInfo)) {
+                            printf("Selected joint: %d - %s\n", selected_joint_index, jointInfo.m_linkName);
+                        } else {
+                            printf("Selected joint: %d\n", selected_joint_index);
+                        }
                     }
                 }
-                else if (event.m_keyCode == 100 && event.m_keyState == 1) { // 'D' key - Next joint
+                else if (event.m_keyCode == 50 && event.m_keyState == 1) { // '2' key - Next joint
                     if (humanoid_ids.empty()) {
                         printf("No humanoids available.\n");
                     } else {
                         int humanoid_id = humanoid_ids[selected_humanoid_id];
                         int num_joints = sim->getNumJoints(humanoid_id);
                         selected_joint_index = (selected_joint_index + 1) % num_joints;
-                        printf("Selected joint: %d\n", selected_joint_index);
+                        
+                        // Get and print the joint name
+                        b3JointInfo jointInfo;
+                        if (sim->getJointInfo(humanoid_id, selected_joint_index, &jointInfo)) {
+                            printf("Selected joint: %d - %s\n", selected_joint_index, jointInfo.m_linkName);
+                        } else {
+                            printf("Selected joint: %d\n", selected_joint_index);
+                        }
                     }
                 }
-                else if (event.m_keyCode == 119 && event.m_keyState == 1) { // 'W' key - Increase position
+                else if (event.m_keyCode == 51 && event.m_keyState == 1) { // '3' key - Increase position
                     modifySelectedJointPosition(0.1);
+                    
+                    // Print current joint value
+                    if (!humanoid_ids.empty()) {
+                        int humanoid_id = humanoid_ids[selected_humanoid_id];
+                        b3JointSensorState state;
+                        if (sim->getJointState(humanoid_id, selected_joint_index, &state)) {
+                            printf("Joint %d position: %.3f\n", selected_joint_index, state.m_jointPosition);
+                        }
+                    }
                 }
-                else if (event.m_keyCode == 115 && event.m_keyState == 1) { // 'S' key - Decrease position
+                else if (event.m_keyCode == 52 && event.m_keyState == 1) { // '4' key - Decrease position
                     modifySelectedJointPosition(-0.1);
+                    
+                    // Print current joint value
+                    if (!humanoid_ids.empty()) {
+                        int humanoid_id = humanoid_ids[selected_humanoid_id];
+                        b3JointSensorState state;
+                        if (sim->getJointState(humanoid_id, selected_joint_index, &state)) {
+                            printf("Joint %d position: %.3f\n", selected_joint_index, state.m_jointPosition);
+                        }
+                    }
+                }
+                else if (event.m_keyCode == 53 && event.m_keyState == 1) { // '5' key - Previous animation frame
+                    current_animation_frame = std::max(0, current_animation_frame - 1);
+                    printf("Animation frame: %d\n", current_animation_frame);
+                }
+                else if (event.m_keyCode == 54 && event.m_keyState == 1) { // '6' key - Next animation frame
+                    current_animation_frame++;
+                    printf("Animation frame: %d\n", current_animation_frame);
                 }
                 last_event_time = clock::now();
             }
@@ -308,7 +365,7 @@ public:
                 // Set the same angle as in reset function
                 int i = 0; // Use first grid position for simplicity
                 int j = 0;
-                btVector3 start_pos(i * grid_space, j * grid_space, 0.5);
+                btVector3 start_pos(i * grid_space, j * grid_space, 1.0);
                 btQuaternion start_ori;
                 start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
                 
