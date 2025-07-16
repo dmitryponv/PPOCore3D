@@ -32,17 +32,6 @@ public:
         std::random_device rd;
         rng = std::mt19937(rd());
 
-        if (!sim->connect(eCONNECT_GUI)) {
-            printf("Cannot connect\n");
-            return;
-        }
-
-        sim->configureDebugVisualizer(COV_ENABLE_GUI, 0);
-        sim->setTimeOut(10);
-        sim->syncBodies();
-        sim->setTimeStep(1. / 240.);
-        sim->setGravity(btVector3(0, 0, -9.8));
-
         for (int i = 0; i < this->grid_size; ++i) {
             for (int j = 0; j < this->grid_size; ++j) {
                 btVector3 base_pos(i * this->grid_space, j * this->grid_space, 0.0f);

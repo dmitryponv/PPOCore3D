@@ -44,7 +44,19 @@ public:
 
 class Env3D : public Env {
 public:
-    Env3D(torch::Device& device, b3RobotSimulatorClientAPI* sim_ptr) : Env(device), sim(sim_ptr) {}
+    Env3D(torch::Device& device, b3RobotSimulatorClientAPI* sim_ptr) : Env(device), sim(sim_ptr) 
+    {
+        if (!sim->connect(eCONNECT_GUI)) {
+            printf("Cannot connect\n");
+            return;
+        }
+
+        sim->configureDebugVisualizer(COV_ENABLE_GUI, 0);
+        sim->setTimeOut(10);
+        sim->syncBodies();
+        sim->setTimeStep(1. / 240.);
+        sim->setGravity(btVector3(0, 0, -9.8));
+    }
     virtual ~Env3D() override = default;
 
     b3RobotSimulatorClientAPI* sim;
@@ -54,6 +66,9 @@ public:
     int selected_joint_index = 0; // Track selected joint
     int selected_object_id = 0; // Track selected humanoid
     int current_animation_frame = 0; // Track current animation frame
+
+    btVector3 start_pos = btVector3(0, 0, 0);
+    btQuaternion start_ori = btQuaternion(0, 0, 0, 1);
 
     void animate(int anim_skip_steps = 1) override {
         // Mouse interaction for joint manipulation
@@ -68,7 +83,7 @@ public:
         // Run animation loop until escape is pressed
         using clock = std::chrono::steady_clock;
         auto last_event_time = clock::now();
-        while (true) {
+        while (true && object_ids.size() > 0) {
             // Check for escape key
 
             auto now = clock::now();
@@ -164,17 +179,10 @@ public:
             }
 
             // Freeze base position and velocity for all loaded URDF humanoids
-            for (int object_id : object_ids) {
-                // Set the same angle as in reset function
-                int i = 0; // Use first grid position for simplicity
-                int j = 0;
-                btVector3 start_pos(i * grid_space, j * grid_space, 1.0);
-                btQuaternion start_ori;
-                start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
-
-                sim->resetBasePositionAndOrientation(object_id, start_pos, start_ori);
-                sim->resetBaseVelocity(object_id, btVector3(0, 0, 0), btVector3(0, 0, 0));
-            }
+            int i = 0; // Use first grid position for simplicity
+            int j = 0;
+            sim->resetBasePositionAndOrientation(object_ids[0], start_pos, start_ori);
+            sim->resetBaseVelocity(object_ids[0], btVector3(0, 0, 0), btVector3(0, 0, 0));
 
             // Step simulation to apply joint changes
             sim->stepSimulation();

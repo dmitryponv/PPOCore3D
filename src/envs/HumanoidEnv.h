@@ -14,28 +14,22 @@ public:
 
         this->grid_size = grid_size; // Initialize inherited member
         this->grid_space = grid_space; // Initialize inherited member
-        if (!sim->connect(eCONNECT_GUI)) {
-            printf("Cannot connect\n");
-            return;
-        }
 
-        sim->setGravity(btVector3(0, 0, -9.8));
-        sim->setTimeStep(1. / 240.);
-
+        start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
         object_ids.clear();
 
         for (int i = 0; i < this->grid_size; ++i) { // Use this->grid_size
             for (int j = 0; j < this->grid_size; ++j) { // Use this->grid_size
-                btVector3 start_pos(i * this->grid_space, j * this->grid_space, 0.0f); // Use this->grid_space
+                btVector3 start_position(i * this->grid_space, j * this->grid_space, 0.0f); // Use this->grid_space
 
                 b3RobotSimulatorLoadUrdfFileArgs plane_args;
-                plane_args.m_startPosition = { start_pos.x(), start_pos.y(), start_pos.z() };
+                plane_args.m_startPosition = { start_position.x(), start_position.y(), start_position.z() };
                 plane_args.m_startOrientation = { 0.0f, 0.0f, 0.0f, 1.0f };
                 sim->loadURDF("plane.urdf", plane_args);
 
                 b3RobotSimulatorLoadUrdfFileArgs args;
-                args.m_startPosition = { start_pos.x(), start_pos.y(), 1.0f };
-                args.m_startOrientation = { 0.0f, 0.0f, 0.0f, 1.0f };
+                args.m_startPosition = { start_position.x(), start_position.y(), 1.0f };
+                args.m_startOrientation = start_ori;
                 args.m_useMultiBody = true;
                 args.m_flags = 0;
 
@@ -72,8 +66,6 @@ public:
         int id = object_ids[index];
 
         btVector3 start_pos(i * grid_space, j * grid_space, 0.5);
-        btQuaternion start_ori;
-        start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
 
         sim->resetBasePositionAndOrientation(id, start_pos, start_ori);
         sim->resetBaseVelocity(id, btVector3(0, 0, 0), btVector3(0, 0, 0));

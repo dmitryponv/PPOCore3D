@@ -11,25 +11,8 @@ public:
         this->grid_size = grid_size; // Initialize inherited member
         this->grid_space = grid_space; // Initialize inherited member
 
-        sim = new b3RobotSimulatorClientAPI();
-        bool isConnected = sim->connect(eCONNECT_GUI);
-
-        if (!isConnected) {
-            printf("Cannot connect\n");
-            return;
-        }
-
-        sim->configureDebugVisualizer(COV_ENABLE_GUI, 0);
-        sim->setTimeOut(10);
-        sim->syncBodies();
-
-        btScalar fixedTimeStep = 1. / 240.;
-        sim->setTimeStep(fixedTimeStep);
-        sim->setGravity(btVector3(0, 0, -9.8));
-
         int total_robots = GetGridCount(); // Use GetGridCount()
-        minitaurUids.reserve(total_robots);
-        // validTorqueJoints_per_robot removed
+        object_ids.reserve(total_robots);
 
         bool valid_joints_initialized = false; // Flag to initialize validTorqueJoints once
 
@@ -45,7 +28,7 @@ public:
 
                 MinitaurSetup minitaur_setup; // Create a new setup object for each robot if it manages unique properties
                 int current_minitaur_uid = minitaur_setup.setupMinitaur(sim, base_pos + btVector3(0, 0, .3));
-                minitaurUids.push_back(current_minitaur_uid);
+                object_ids.push_back(current_minitaur_uid);
 
                 if (!valid_joints_initialized) { // Only analyze joints for the first robot
                     int current_num_joints = sim->getNumJoints(current_minitaur_uid);
@@ -72,8 +55,8 @@ public:
         // Observations for all joints (positions + velocities) + base pos/vel
         // Assuming all minitaurs have the same number of valid torque joints for the action space.
         // For observation, we take the first minitaur's info if it exists.
-        if (minitaurUids.empty()) return Space{ {0} };
-        int num_joints_first_robot = sim->getNumJoints(minitaurUids[0]);
+        if (object_ids.empty()) return Space{ {0} };
+        int num_joints_first_robot = sim->getNumJoints(object_ids[0]);
         return Space{ {6 + num_joints_first_robot * 6} };
     }
 
@@ -86,7 +69,7 @@ public:
     torch::Tensor reset(int index = -1) override {
 
         // Reset a specific environment
-        int current_uid = minitaurUids[index];
+        int current_uid = object_ids[index];
         int curr_i = index / grid_size;
         int curr_j = index % grid_size;
         btVector3 base_pos_offset(curr_i * grid_space, curr_j * grid_space, 0.0f);
@@ -111,8 +94,8 @@ public:
         static int frameCount = 0;
         static int fpsTextId = -1;
 
-        for (size_t i = 0; i < std::min(actions.size(), minitaurUids.size()); ++i) {
-            int current_uid = minitaurUids[i];
+        for (size_t i = 0; i < std::min(actions.size(), object_ids.size()); ++i) {
+            int current_uid = object_ids[i];
             const torch::Tensor& action = actions[i];
             const std::vector<int>& current_valid_torque_joints = validTorqueJoints; // Use the single validTorqueJoints
 
@@ -148,8 +131,8 @@ public:
         }
 
         // Collect results for all robots after simulation step
-        for (size_t i = 0; i < minitaurUids.size(); ++i) {
-            int current_uid = minitaurUids[i];
+        for (size_t i = 0; i < object_ids.size(); ++i) {
+            int current_uid = object_ids[i];
             b3LinkState baseLinkState;
             sim->getLinkState(current_uid, 0, 1, 1, &baseLinkState);
             float x = baseLinkState.m_worldPosition[0];
@@ -168,12 +151,7 @@ public:
         // No-op specific rendering for RobotEnv in this setup, as GUI connection handles visual
     }
 
-    void animate(int anim_skip_steps = 1) override {
-        // Empty implementation
-    }
-
 private:
-    std::vector<int> minitaurUids; // UIDs for all minitaur robots
     std::vector<int> validTorqueJoints; // Single vector for valid torque joints, assumed same for all robots
 
     torch::Tensor get_observation(int uid) const {

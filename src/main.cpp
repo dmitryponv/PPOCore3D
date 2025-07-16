@@ -73,7 +73,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     graph_manager.Init();
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
-        {"timesteps_per_batch", 5000},
+        {"timesteps_per_batch", 1000},
+        {"max_timesteps_per_episode", 500},
         {"gamma", 0.99},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
@@ -118,7 +119,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         AgentTargetEnv env(device, 1);
         
         // Mode selection - 0: train, 1: eval, 2: animate
-        int mode = 2; // 0=train, 1=eval, 2=animate
+        int mode = 0; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode
         
         switch (mode) {
