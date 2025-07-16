@@ -2,12 +2,11 @@
 #include "RobotSimulator.h"
 #include "env.h"
 
-class RobotEnv : public Env {
+class RobotEnv : public Env3D {
 public:
     // Modified constructor to take grid_size and grid_space
     RobotEnv(torch::Device& device, int grid_size = 1, float grid_space = 40.0f)
-        : Env(), // Call base class constructor
-        mDevice(device)
+        : Env3D(device, new b3RobotSimulatorClientAPI())
     {
         this->grid_size = grid_size; // Initialize inherited member
         this->grid_space = grid_space; // Initialize inherited member
@@ -174,8 +173,6 @@ public:
     }
 
 private:
-    torch::Device& mDevice;
-    b3RobotSimulatorClientAPI* sim;
     std::vector<int> minitaurUids; // UIDs for all minitaur robots
     std::vector<int> validTorqueJoints; // Single vector for valid torque joints, assumed same for all robots
 

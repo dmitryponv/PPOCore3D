@@ -6,8 +6,7 @@ class PendulumEnv : public Env {
 public:
     // Modified constructor to take grid_size and grid_space
     PendulumEnv(torch::Device& device, int grid_size = 1, float grid_space = 40.0f, const std::string& render_mode = "", float gravity = 10.0f)
-        : Env(), // Call base class constructor
-        mDevice(device),
+        : Env(device), // Call base class constructor
         g(gravity),
         render_mode(render_mode)
     {
@@ -95,7 +94,6 @@ public:
     }
 
 private:
-    torch::Device& mDevice;
     float g, m, l, dt;
     float max_speed, max_torque;
     std::string render_mode;

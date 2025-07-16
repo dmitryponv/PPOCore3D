@@ -4,7 +4,7 @@
 #include "../CommonInterfaces/CommonGUIHelperInterface.h"
 #include "../CommonInterfaces/CommonExampleInterface.h"
 
-class AgentTargetEnv : public Env {
+class AgentTargetEnv : public Env3D {
 private:
     float x_min = -10.0f, x_max = 10.0f;
     float y_min = -10.0f, y_max = 10.0f;
@@ -18,23 +18,20 @@ private:
     std::uniform_real_distribution<float> dist_y;
 
 public:
-    // Constructor now correctly initializes base class members
     AgentTargetEnv(torch::Device& device, int grid_size = 1, float grid_space = 40.0f)
-        : Env(), // Call base class constructor
-        mDevice(device),
+        : Env3D(device, new b3RobotSimulatorClientAPI()),
         x_min(-10.0f), x_max(10.0f),
         y_min(-10.0f), y_max(10.0f),
         max_force(10.0f),
         dist_x(x_min, x_max),
         dist_y(y_min, y_max)
     {
-        this->grid_size = grid_size; // Initialize inherited member
-        this->grid_space = grid_space; // Initialize inherited member
+        this->grid_size = grid_size;
+        this->grid_space = grid_space;
 
         std::random_device rd;
         rng = std::mt19937(rd());
 
-        sim = new b3RobotSimulatorClientAPI();
         if (!sim->connect(eCONNECT_GUI)) {
             printf("Cannot connect\n");
             return;
@@ -46,9 +43,9 @@ public:
         sim->setTimeStep(1. / 240.);
         sim->setGravity(btVector3(0, 0, -9.8));
 
-        for (int i = 0; i < this->grid_size; ++i) { // Use this->grid_size
-            for (int j = 0; j < this->grid_size; ++j) { // Use this->grid_size
-                btVector3 base_pos(i * this->grid_space, j * this->grid_space, 0.0f); // Use this->grid_space
+        for (int i = 0; i < this->grid_size; ++i) {
+            for (int j = 0; j < this->grid_size; ++j) {
+                btVector3 base_pos(i * this->grid_space, j * this->grid_space, 0.0f);
 
                 b3RobotSimulatorLoadUrdfFileArgs plane_args;
                 plane_args.m_startPosition = { base_pos.getX(), base_pos.getY(), base_pos.getZ() };
@@ -162,9 +159,6 @@ public:
     }
 
 private:
-    torch::Device& mDevice;
-    b3RobotSimulatorClientAPI* sim;
-
     torch::Tensor get_observation(int index) const {
         btVector3 agent_base_pos, target_base_pos;
         btQuaternion agent_q, target_q;

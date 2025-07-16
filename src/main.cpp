@@ -115,7 +115,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        HumanoidEnv env(device, 1);
+        AgentTargetEnv env(device, 1);
         
         // Mode selection - 0: train, 1: eval, 2: animate
         int mode = 2; // 0=train, 1=eval, 2=animate
