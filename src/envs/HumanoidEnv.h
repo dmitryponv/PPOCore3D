@@ -16,7 +16,7 @@ public:
         this->grid_space = grid_space; // Initialize inherited member
 
         start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
-        object_ids.clear();
+        agent_ids.clear();
 
         for (int i = 0; i < this->grid_size; ++i) { // Use this->grid_size
             for (int j = 0; j < this->grid_size; ++j) { // Use this->grid_size
@@ -34,7 +34,7 @@ public:
                 args.m_flags = 0;
 
                 int id = sim->loadURDF("humanoid.urdf", args);
-                object_ids.push_back(id);
+                agent_ids.push_back(id);
             }
         }
 
@@ -42,26 +42,26 @@ public:
     }
 
     Space observation_space() const override {
-        if (object_ids.empty()) return Space{ {0} };
-        int num_joints = sim->getNumJoints(object_ids[0]);
+        if (agent_ids.empty()) return Space{ {0} };
+        int num_joints = sim->getNumJoints(agent_ids[0]);
         int obs_per_joint = 3 + 4 + 3 + 3; // pos + quat + linear vel + angular vel
         return Space{ {num_joints * obs_per_joint} };
     }
 
     Space action_space() const override {
-        if (object_ids.empty()) return Space{ {0} };
-        return Space{ {sim->getNumJoints(object_ids[0])} };
+        if (agent_ids.empty()) return Space{ {0} };
+        return Space{ {sim->getNumJoints(agent_ids[0])} };
     }
 
     torch::Tensor reset(int index) override {
-        if (index < 0 || index >= object_ids.size()) {
+        if (index < 0 || index >= agent_ids.size()) {
             return torch::empty({ 0 });
         }
 
         int i = index / grid_size;
         int j = index % grid_size;
 
-        int id = object_ids[index];
+        int id = agent_ids[index];
 
         btVector3 start_pos(i * grid_space, j * grid_space, 0.5);
 
@@ -98,8 +98,8 @@ public:
             frameCount = 0;
         }
 
-        for (size_t i = 0; i < std::min(actions.size(), object_ids.size()); ++i) {
-            int id = object_ids[i];
+        for (size_t i = 0; i < std::min(actions.size(), agent_ids.size()); ++i) {
+            int id = agent_ids[i];
             const torch::Tensor& action = actions[i];
             int num_joints = sim->getNumJoints(id);
             const float max_velocity = 1.0f;
@@ -126,8 +126,8 @@ public:
 
         sim->stepSimulation();
 
-        for (size_t i = 0; i < object_ids.size(); ++i) {
-            int id = object_ids[i];
+        for (size_t i = 0; i < agent_ids.size(); ++i) {
+            int id = agent_ids[i];
             int num_joints = sim->getNumJoints(id);
 
             // Find the link index for "torso_object"

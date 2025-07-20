@@ -3,7 +3,7 @@
 using namespace std;
 
 
-#define DEBUG_TENSORS
+//#define DEBUG_TENSORS
 
 void print_tensor_inline(const std::string& name, const torch::Tensor& t, int precision = 4, int max_elements = 10) {
 #ifdef DEBUG_TENSORS

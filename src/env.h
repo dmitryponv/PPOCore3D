@@ -60,7 +60,8 @@ public:
     virtual ~Env3D() override = default;
 
     b3RobotSimulatorClientAPI* sim;
-    std::vector<int> object_ids;
+    std::vector<int> agent_ids;
+    std::vector<int> target_ids;
     /// ANIMATION CODE
     std::vector<double> saved_joint_positions; // Store joint positions
     int selected_joint_index = 0; // Track selected joint
@@ -83,7 +84,7 @@ public:
         // Run animation loop until escape is pressed
         using clock = std::chrono::steady_clock;
         auto last_event_time = clock::now();
-        while (true && object_ids.size() > 0) {
+        while (true && agent_ids.size() > 0) {
             // Check for escape key
 
             auto now = clock::now();
@@ -106,11 +107,11 @@ public:
                     printf("Joint positions reset to saved state.\n");
                 }
                 else if (event.m_keyCode == 49 && event.m_keyState == 1) { // '1' key - Previous joint
-                    if (object_ids.empty()) {
+                    if (agent_ids.empty()) {
                         printf("No humanoids available.\n");
                     }
                     else {
-                        int object_id = object_ids[selected_object_id];
+                        int object_id = agent_ids[selected_object_id];
                         int num_joints = sim->getNumJoints(object_id);
                         selected_joint_index = (selected_joint_index - 1 + num_joints) % num_joints;
 
@@ -125,11 +126,11 @@ public:
                     }
                 }
                 else if (event.m_keyCode == 50 && event.m_keyState == 1) { // '2' key - Next joint
-                    if (object_ids.empty()) {
+                    if (agent_ids.empty()) {
                         printf("No humanoids available.\n");
                     }
                     else {
-                        int object_id = object_ids[selected_object_id];
+                        int object_id = agent_ids[selected_object_id];
                         int num_joints = sim->getNumJoints(object_id);
                         selected_joint_index = (selected_joint_index + 1) % num_joints;
 
@@ -147,8 +148,8 @@ public:
                     modifySelectedJointPosition(0.1);
 
                     // Print current joint value
-                    if (!object_ids.empty()) {
-                        int object_id = object_ids[selected_object_id];
+                    if (!agent_ids.empty()) {
+                        int object_id = agent_ids[selected_object_id];
                         b3JointSensorState state;
                         if (sim->getJointState(object_id, selected_joint_index, &state)) {
                             printf("Joint %d position: %.3f\n", selected_joint_index, state.m_jointPosition);
@@ -159,8 +160,8 @@ public:
                     modifySelectedJointPosition(-0.1);
 
                     // Print current joint value
-                    if (!object_ids.empty()) {
-                        int object_id = object_ids[selected_object_id];
+                    if (!agent_ids.empty()) {
+                        int object_id = agent_ids[selected_object_id];
                         b3JointSensorState state;
                         if (sim->getJointState(object_id, selected_joint_index, &state)) {
                             printf("Joint %d position: %.3f\n", selected_joint_index, state.m_jointPosition);
@@ -181,8 +182,8 @@ public:
             // Freeze base position and velocity for all loaded URDF humanoids
             int i = 0; // Use first grid position for simplicity
             int j = 0;
-            sim->resetBasePositionAndOrientation(object_ids[0], start_pos, start_ori);
-            sim->resetBaseVelocity(object_ids[0], btVector3(0, 0, 0), btVector3(0, 0, 0));
+            sim->resetBasePositionAndOrientation(agent_ids[0], start_pos, start_ori);
+            sim->resetBaseVelocity(agent_ids[0], btVector3(0, 0, 0), btVector3(0, 0, 0));
 
             // Step simulation to apply joint changes
             sim->stepSimulation();
@@ -195,12 +196,12 @@ public:
     // External function to save joint positions
     void saveJointPositions() {
         try {
-            if (object_ids.empty()) {
+            if (agent_ids.empty()) {
                 printf("No humanoids available to save.\n");
                 return;
             }
             saved_joint_positions.clear();
-            int object_id = object_ids[0]; // Only one humanoid
+            int object_id = agent_ids[0]; // Only one humanoid
             int num_joints = sim->getNumJoints(object_id);
             for (int j = 0; j < num_joints; ++j) {
                 b3JointSensorState state;
@@ -223,7 +224,7 @@ public:
     // External function to reset joint positions
     void resetJointPositions() {
         try {
-            if (object_ids.empty()) {
+            if (agent_ids.empty()) {
                 printf("No humanoids available to reset.\n");
                 return;
             }
@@ -231,7 +232,7 @@ public:
                 printf("No saved positions to reset to.\n");
                 return;
             }
-            int object_id = object_ids[0]; // Only one humanoid
+            int object_id = agent_ids[0]; // Only one humanoid
             int num_joints = sim->getNumJoints(object_id);
             for (int j = 0; j < num_joints; ++j) {
                 b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
@@ -251,14 +252,14 @@ public:
 
     void modifySelectedJointPosition(double delta) {
         try {
-            if (object_ids.empty()) {
+            if (agent_ids.empty()) {
                 printf("No humanoids available.\n");
                 return;
             }
-            if (selected_object_id >= object_ids.size()) {
+            if (selected_object_id >= agent_ids.size()) {
                 selected_object_id = 0;
             }
-            int object_id = object_ids[selected_object_id];
+            int object_id = agent_ids[selected_object_id];
             int num_joints = sim->getNumJoints(object_id);
             if (selected_joint_index >= num_joints) {
                 selected_joint_index = 0;

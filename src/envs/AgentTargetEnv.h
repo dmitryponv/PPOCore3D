@@ -10,9 +10,6 @@ private:
     float y_min = -10.0f, y_max = 10.0f;
     float max_force = 10.0f;
 
-    std::vector<int> agent_ids;
-    std::vector<int> target_ids;
-
     std::mt19937 rng;
     std::uniform_real_distribution<float> dist_x;
     std::uniform_real_distribution<float> dist_y;

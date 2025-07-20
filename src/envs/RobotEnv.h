@@ -12,7 +12,6 @@ public:
         this->grid_space = grid_space; // Initialize inherited member
 
         int total_robots = GetGridCount(); // Use GetGridCount()
-        object_ids.reserve(total_robots);
 
         bool valid_joints_initialized = false; // Flag to initialize validTorqueJoints once
 
@@ -28,7 +27,7 @@ public:
 
                 MinitaurSetup minitaur_setup; // Create a new setup object for each robot if it manages unique properties
                 int current_minitaur_uid = minitaur_setup.setupMinitaur(sim, base_pos + btVector3(0, 0, .3));
-                object_ids.push_back(current_minitaur_uid);
+                agent_ids.push_back(current_minitaur_uid);
 
                 if (!valid_joints_initialized) { // Only analyze joints for the first robot
                     int current_num_joints = sim->getNumJoints(current_minitaur_uid);
@@ -55,8 +54,8 @@ public:
         // Observations for all joints (positions + velocities) + base pos/vel
         // Assuming all minitaurs have the same number of valid torque joints for the action space.
         // For observation, we take the first minitaur's info if it exists.
-        if (object_ids.empty()) return Space{ {0} };
-        int num_joints_first_robot = sim->getNumJoints(object_ids[0]);
+        if (agent_ids.empty()) return Space{ {0} };
+        int num_joints_first_robot = sim->getNumJoints(agent_ids[0]);
         return Space{ {6 + num_joints_first_robot * 6} };
     }
 
@@ -69,7 +68,7 @@ public:
     torch::Tensor reset(int index = -1) override {
 
         // Reset a specific environment
-        int current_uid = object_ids[index];
+        int current_uid = agent_ids[index];
         int curr_i = index / grid_size;
         int curr_j = index % grid_size;
         btVector3 base_pos_offset(curr_i * grid_space, curr_j * grid_space, 0.0f);
@@ -94,8 +93,8 @@ public:
         static int frameCount = 0;
         static int fpsTextId = -1;
 
-        for (size_t i = 0; i < std::min(actions.size(), object_ids.size()); ++i) {
-            int current_uid = object_ids[i];
+        for (size_t i = 0; i < std::min(actions.size(), agent_ids.size()); ++i) {
+            int current_uid = agent_ids[i];
             const torch::Tensor& action = actions[i];
             const std::vector<int>& current_valid_torque_joints = validTorqueJoints; // Use the single validTorqueJoints
 
@@ -131,8 +130,8 @@ public:
         }
 
         // Collect results for all robots after simulation step
-        for (size_t i = 0; i < object_ids.size(); ++i) {
-            int current_uid = object_ids[i];
+        for (size_t i = 0; i < agent_ids.size(); ++i) {
+            int current_uid = agent_ids[i];
             b3LinkState baseLinkState;
             sim->getLinkState(current_uid, 0, 1, 1, &baseLinkState);
             float x = baseLinkState.m_worldPosition[0];
