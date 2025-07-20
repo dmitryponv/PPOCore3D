@@ -81,7 +81,7 @@ public:
         }
     }
 
-    void animate(int anim_skip_steps = 1) override {
+    void animate() override {
         // Empty implementation
     }
 
