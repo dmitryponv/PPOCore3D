@@ -16,6 +16,7 @@ public:
         this->grid_space = grid_space; // Initialize inherited member
 
         start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
+        start_pos = { 0,0,1 };
         agent_ids.clear();
 
         for (int i = 0; i < this->grid_size; ++i) { // Use this->grid_size
@@ -28,7 +29,7 @@ public:
                 sim->loadURDF("plane.urdf", plane_args);
 
                 b3RobotSimulatorLoadUrdfFileArgs args;
-                args.m_startPosition = { start_position.x(), start_position.y(), 1.0f };
+                args.m_startPosition = { start_position.x(), start_position.y(), start_pos.z()};
                 args.m_startOrientation = start_ori;
                 args.m_useMultiBody = true;
                 args.m_flags = 0;

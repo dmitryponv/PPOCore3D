@@ -116,10 +116,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        HumanoidEnv env(device, 2);
+        HumanoidEnv env(device, 1);
         
         // Mode selection - 0: train, 1: eval, 2: animate
-        int mode = 0; // 0=train, 1=eval, 2=animate
+        int mode = 2; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode
         
         switch (mode) {
