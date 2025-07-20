@@ -84,7 +84,7 @@ public:
         return get_observation(current_uid);
     }
 
-    std::vector<std::tuple<torch::Tensor, float, bool, bool>> step(const std::vector<torch::Tensor>& actions) override {
+    std::vector<std::tuple<torch::Tensor, float, bool, bool>> step(const std::vector<torch::Tensor>& actions, int frame_index) override {
         std::vector<std::tuple<torch::Tensor, float, bool, bool>> results;
         results.reserve(actions.size());
 
@@ -93,6 +93,9 @@ public:
         static int frameCount = 0;
         static int fpsTextId = -1;
 
+        // Optionally: get animation for this frame
+        auto anim = GetJointAnim(frame_index);
+
         for (size_t i = 0; i < std::min(actions.size(), agent_ids.size()); ++i) {
             int current_uid = agent_ids[i];
             const torch::Tensor& action = actions[i];
@@ -100,7 +103,8 @@ public:
 
             for (size_t k = 0; k < current_valid_torque_joints.size(); ++k) {
                 int joint_idx = current_valid_torque_joints[k];
-                float torque = action[k].item<float>() * 10.0f;
+                float anim_val = (k < anim.size()) ? anim[k] : 0.0f;
+                float torque = action[k].item<float>() * 10.0f;// + anim_val;
                 torque = std::clamp(torque, -5.0f, 5.0f);
                 b3JointInfo jointInfo;
                 sim->getJointInfo(current_uid, joint_idx, &jointInfo);

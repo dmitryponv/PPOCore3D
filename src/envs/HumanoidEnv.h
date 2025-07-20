@@ -77,27 +77,30 @@ public:
         return get_observation(id);
     }
 
-    std::vector<std::tuple<torch::Tensor, float, bool, bool>> step(const std::vector<torch::Tensor>& actions) {
+    std::vector<std::tuple<torch::Tensor, float, bool, bool>> step(const std::vector<torch::Tensor>& actions, int frame_index) override {
         std::vector<std::tuple<torch::Tensor, float, bool, bool>> results;
 
         static b3Clock clock;
         static double lastTime = clock.getTimeInSeconds();
-        static int frameCount = 0;
         static int fpsTextId = -1;
-        frameCount++;
         double currentTime = clock.getTimeInSeconds();
+        static int frameCounterForFPS = 0;
+        frameCounterForFPS++;
         double elapsed = currentTime - lastTime;
-        if (elapsed >= 1.0) {
-            double fps = frameCount / elapsed;
+        if (elapsed >= 5.0) {
+            double fps = frameCounterForFPS / elapsed;
             std::string text = "FPS: " + std::to_string(fps); // Fixed string concatenation
             if (fpsTextId >= 0)
                 sim->removeUserDebugItem(fpsTextId);
             double pos[3] = { 0, 0, 2 };
             b3RobotSimulatorAddUserDebugTextArgs args;
             fpsTextId = sim->addUserDebugText(text.c_str(), pos, args);
+            frameCounterForFPS = 0;
             lastTime = currentTime;
-            frameCount = 0;
         }
+
+        // Get animation for this frame
+        auto anim = GetJointAnim(frame_index/30); //1 animation frame per second
 
         for (size_t i = 0; i < std::min(actions.size(), agent_ids.size()); ++i) {
             int id = agent_ids[i];
@@ -115,10 +118,11 @@ public:
                 }
 
                 float action_single = action[j].item<float>() * 10.0f;
+                float anim_val = (j < anim.size()) ? anim[j] : 0.0f;
 
                 b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
                 motorArgs.m_maxTorqueValue = 200.0f;
-                motorArgs.m_targetPosition = action_single;
+                motorArgs.m_targetPosition = action_single + anim_val;
                 motorArgs.m_targetVelocity = max_velocity;
 
                 sim->setJointMotorControl(id, j, motorArgs);
@@ -161,6 +165,11 @@ public:
             bool done = false;// dist > 30;
 
             results.push_back({ get_observation(id), reward, done, false });
+
+            //FOR TESTING ANIMATIONS
+            //sim->resetBasePositionAndOrientation(id, start_pos, start_ori);
+            //sim->resetBaseVelocity(id, btVector3(0, 0, 0), btVector3(0, 0, 0));
+
         }
 
         return results;

@@ -429,6 +429,7 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<st
 				ep_rews[i].clear();
 				observations[i] = env.reset(i);
 			}
+			int frame_index = 0; // Reset at the start of each batch
 			for (int ep_t = 0; ep_t < max_timesteps_per_episode; ep_t++) {
 				t += 1;
 				for (int i = 0; i < grid_count; i++)
@@ -438,9 +439,9 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<st
 					actions[i] = action_tensor;
 					log_probs[i] = log_prob;
 				}
-								
-				auto step_results = env.step(actions);				
-				
+				// Pass frame_index to env.step
+				auto step_results = env.step(actions, frame_index);
+
 				for (int i = 0; i < grid_count; i++)
 				{
 					auto& [next_obs, rew, terminated, truncated] = step_results[i];
@@ -455,8 +456,10 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<st
 						batch_rewards[i].push_back(ep_rews[i]);
 						observations[i] = env.reset(i);
 						ep_rews[i].clear();
+						frame_index = 0; // Reset frame index for new episode
 					}
 				}
+				frame_index++; // Increment frame index each step
 			}
 		}
 
@@ -509,17 +512,18 @@ void PPO_Eval::eval_policy(bool render, float fixedTimeStepS) {
 		int ep_num = 0;
 		if (env.GetGridCount() < 1)
 			return;
-		while (true) {				
+		while (true) {
 			auto obs_tensor = env.reset(0);
 			// Use only the first observation
 			bool done = false;
 			float ep_ret = 0.0f;
 			int ep_len = 0;
+			int frame_index = 0; // Track the frame index for this episode
 
 			while (!done) {
 				auto [action_tensor, log_prob] = get_action(obs_tensor);
 				// Wrap single action in a vector for batchi_step or use step with single action
-				auto step_results = env.step({ action_tensor });
+				auto step_results = env.step({ action_tensor }, frame_index);
 				// We expect one result since we passed one action
 				auto& [next_obs, rew, terminated, truncated] = step_results[0];
 
@@ -528,11 +532,16 @@ void PPO_Eval::eval_policy(bool render, float fixedTimeStepS) {
 				ep_len += 1;
 				done = terminated || truncated;
 
+				if(done)
+					frame_index = 0;
+
 				if (render) {
 					env.render();
 				}
 				if (fixedTimeStepS > 0.001f)
 					b3Clock::usleep(1000. * 1000. * fixedTimeStepS);
+
+				frame_index++; // Increment frame index each step
 			}
 
 			log_eval(static_cast<float>(ep_len), ep_ret, ep_num);

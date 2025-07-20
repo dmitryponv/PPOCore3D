@@ -87,8 +87,7 @@ public:
         return get_observation(index);
     }
 
-    std::vector<std::tuple<torch::Tensor, float, bool, bool>>
-        step(const std::vector<torch::Tensor>& actions) override {
+    std::vector<std::tuple<torch::Tensor, float, bool, bool>> step(const std::vector<torch::Tensor>& actions, int frame_index) override {
         std::vector<std::tuple<torch::Tensor, float, bool, bool>> results;
         results.reserve(actions.size());
 

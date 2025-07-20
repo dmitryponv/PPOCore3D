@@ -34,7 +34,7 @@ public:
     };
 
     virtual torch::Tensor reset(int index = -1) = 0;
-    virtual std::vector<std::tuple<torch::Tensor, float, bool, bool>> step(const std::vector<torch::Tensor>& actions) = 0;
+    virtual std::vector<std::tuple<torch::Tensor, float, bool, bool>> step(const std::vector<torch::Tensor>& actions, int frame_index) = 0;
     virtual void render() = 0;
     virtual void animate() = 0;
     virtual Space observation_space() const = 0;
