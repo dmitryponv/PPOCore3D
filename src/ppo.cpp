@@ -3,11 +3,10 @@
 using namespace std;
 
 
-//#define DEBUG_TENSORS
+#define DEBUG_TENSORS
 
 void print_tensor_inline(const std::string& name, const torch::Tensor& t, int precision = 4, int max_elements = 10) {
-	//std::cout << name << " shape: " << t.sizes() << std::endl;
-#ifdef DEBUG_TENSNORS
+#ifdef DEBUG_TENSORS
 	torch::Tensor flat = t.flatten().cpu();
 	std::cout << name << "=tensor([";
 	int64_t size = flat.size(0);
@@ -149,23 +148,6 @@ void PPO::_log_train() {
 		int t_so_far = std::get<int>(logger["t_so_far"]);
 		int i_so_far = std::get<int>(logger["i_so_far"]);
 
-		//vector<int> batch_lengths = std::get<vector<int>>(logger["batch_lengths"]);
-		//float avg_ep_lens = 0.0;
-		//if (!batch_lengths.empty()) {
-		//	avg_ep_lens = accumulate(batch_lengths.begin(), batch_lengths.end(), 0.0) / batch_lengths.size();
-		//}
-		//
-		//vector<vector<float>> batch_rewards = std::get<vector<vector<float>>>(logger["batch_rewards"]);
-		//float avg_ep_rews = 0.0;
-		//if (!batch_rewards.empty()) {
-		//	float sum_rews = 0.0;
-		//	int count = 0;
-		//	for (const auto& ep_rews : batch_rewards) {
-		//		sum_rews += accumulate(ep_rews.begin(), ep_rews.end(), 0.0);
-		//		count++;
-		//	}
-		//	avg_ep_rews = sum_rews / count;
-		//}
 		vector<vector<int>> batch_lengths = std::get<vector<vector<int>>>(logger["batch_lengths"]);
 		float avg_ep_lens = 0.0;
 		if (!batch_lengths.empty()) {
@@ -249,6 +231,12 @@ std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs
 		auto dist = NormalMultivariate(mean, std_dev, device);
 		torch::Tensor action_tensor = dist.sample();
 		torch::Tensor log_prob = dist.log_prob(action_tensor);
+
+		print_tensor_inline("obs_tensor", obs_tensor);
+		print_tensor_inline("mean", mean);
+		print_tensor_inline("action_tensor", action_tensor);
+		print_tensor_inline("log_prob_tensor", log_prob);
+
 		return { action_tensor.detach(), log_prob.detach() };
 	}
 	catch (const std::exception& e) {

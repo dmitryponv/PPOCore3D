@@ -41,8 +41,6 @@ public:
         sim->setRealTimeSimulation(false);
     }
 
-
-
     Space observation_space() const override {
         if (object_ids.empty()) return Space{ {0} };
         int num_joints = sim->getNumJoints(object_ids[0]);
@@ -156,17 +154,16 @@ public:
             }
 
             btVector3 target_pos_check(0.0f, 0.0f, 2.0f);
-            float dist = (torso_pos - target_pos_check).length();
-            float reward = dist - 1.5f;
-            reward = (torso_pos[2] - target_pos_check[2]);
-            bool done = dist > 30;
+            //float dist = (torso_pos - target_pos_check).length();
+            //float reward = dist - 1.5f;
+            float reward = (torso_pos[2] - target_pos_check[2]);
+            bool done = false;// dist > 30;
 
             results.push_back({ get_observation(id), reward, done, false });
         }
 
         return results;
     }
-
 
     torch::Tensor get_observation(int id) {
         std::vector<float> obs;
