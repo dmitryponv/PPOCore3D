@@ -167,8 +167,7 @@ public:
             results.push_back({ get_observation(id), reward, done, false });
 
             //FOR TESTING ANIMATIONS
-            //sim->resetBasePositionAndOrientation(id, start_pos, start_ori);
-            //sim->resetBaseVelocity(id, btVector3(0, 0, 0), btVector3(0, 0, 0));
+            //sim->resetBasePositionAndOrientation(id, start_pos, start_ori); sim->resetBaseVelocity(id, btVector3(0, 0, 0), btVector3(0, 0, 0));
 
         }
 

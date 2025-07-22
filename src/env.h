@@ -19,6 +19,7 @@
 #include "RobotSimulator.h"
 #include <tinyxml/tinyxml2.h>
 #include <sys/stat.h>
+#include "Manipulator.h"
 // Include individual environment headers
 
 // Abstract environment interface
@@ -61,6 +62,7 @@ public:
 
         // Load animation XML once
         LoadAnimationXML();
+        EnableManipulator();
     }
     virtual ~Env3D() override = default;
 
@@ -77,6 +79,52 @@ public:
     btQuaternion start_ori = btQuaternion(0, 0, 0, 1);
 
     tinyxml2::XMLDocument animation_doc;
+
+    Manipulator* manipulator;
+
+    void EnableManipulator()
+    {
+        HINSTANCE hInstance = GetModuleHandle(NULL);
+        int nCmdShow = SW_SHOWNORMAL; // Or whatever you get from WinMain
+
+        try {
+            manipulator = new Manipulator(hInstance, 100, 100, 400, 300, "Robot Arm Control", 3);
+            // Create a manipulator for a 3-joint arm
+            manipulator->Show(nCmdShow);
+
+            // Set joint ranges (e.g., Joint 1 from 0 to 180 degrees)
+            manipulator->SetJointRange(0, 0, 180);
+            manipulator->SetJointRange(1, -90, 90);
+            manipulator->SetJointRange(2, 0, 360);
+
+            // Set frame number range
+            manipulator->SetFrameRange(0, 500);
+
+            // Set a callback to get updates
+            manipulator->SetOnManipulatorChangeCallback(
+                [&](const std::vector<int>& jointAngles, int frameNumber) {
+                    std::cout << "Joint Angles: [";
+                    for (int angle : jointAngles) {
+                        std::cout << angle << " ";
+                    }
+                    std::cout << "], Frame: " << frameNumber << std::endl;
+
+                    // Here you would typically update your 3D model, animation, etc.
+                }
+            );
+
+            //// Main message loop (if you're not using GraphWindowManager's implicit loop)
+            //MSG msg = {};
+            //while (GetMessage(&msg, NULL, 0, 0)) {
+            //    TranslateMessage(&msg);
+            //    DispatchMessage(&msg);
+            //}
+        }
+        catch (const std::runtime_error& e) {
+            MessageBoxA(NULL, e.what(), "Error", MB_ICONERROR);
+            return;
+        }
+    }
 
     void LoadAnimationXML() {
         std::string xml_path = "animations/animation.xml";
@@ -201,6 +249,13 @@ public:
 
             // Step simulation to apply joint changes
             sim->stepSimulation();
+
+            // Main message loop (if you're not using GraphWindowManager's implicit loop)
+            MSG msg = {};
+            if(GetMessage(&msg, NULL, 0, 0)) {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
 
             // Small delay to prevent excessive CPU usage
             std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
