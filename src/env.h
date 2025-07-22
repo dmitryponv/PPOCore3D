@@ -133,33 +133,52 @@ public:
 
             manipulator->SetOnManipulatorChangeCallback(
                 // Capture 'this' by reference (for sim, agent_ids etc.)
-                // Capture joint_positions by reference so it can be modified.
-                // Remove 'numJoints' and 'object_id' from explicit capture if they are
-                // already covered by default capture 'this' or other means.
-                [&, object_id, numJoints](const std::vector<int>& jointAngles, int frameNumber) { // Fix: removed '&joint_positions' if '&' default capture is used.
-                    // object_id and numJoints are captured here as they are local to EnableManipulator
-                    std::cout << "Joint Angles: [";
-                    for (int angle : jointAngles) {
-                        std::cout << angle << " ";
-                    }
-                    std::cout << "], Frame: " << frameNumber << std::endl;
-
-                    for (int j = 0; j < numJoints; ++j) {
-                        if (j < jointAngles.size()) {
-                            const double DEG_TO_RAD = SIMD_PI / 180.0;
-                            // Now joint_positions is non-const, so assignment is allowed.
-                            double joint_positions = static_cast<double>(jointAngles[j]) * DEG_TO_RAD; // Fix: Assignment to non-const
-
-                            b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-                            motorArgs.m_targetPosition = joint_positions;
-                            motorArgs.m_targetVelocity = 1.0;
-                            motorArgs.m_kp = 0.1;
-                            motorArgs.m_kd = 0.5;
-                            motorArgs.m_maxTorqueValue = 1000.0;
-
-                            sim->setJointMotorControl(object_id, j, motorArgs);
+                // Capture joint_positions by reference if it's a member or local.
+                // object_id and numJoints are captured here as they are local to EnableManipulator
+                [&, object_id, numJoints](const std::vector<int>& positionXYZ,
+                    const std::vector<int>& rotationXYZ,
+                    const std::vector<int>& jointAngles,
+                    int frameNumber) {
+                        std::cout << "Position: [" << positionXYZ[0] << " " << positionXYZ[1] << " " << positionXYZ[2] << "], ";
+                        std::cout << "Rotation: [" << rotationXYZ[0] << " " << rotationXYZ[1] << " " << rotationXYZ[2] << "], ";
+                        std::cout << "Joint Angles: [";
+                        for (int angle : jointAngles) {
+                            std::cout << angle << " ";
                         }
-                    }
+                        std::cout << "], Frame: " << frameNumber << std::endl;
+
+                        // --- Apply Base Position and Orientation ---
+                        // Convert integer slider values (e.g., in degrees/units) to Bullet's required types (doubles/quaternions)
+                        // Assuming positionXYZ values are directly usable as coordinates (e.g., meters)
+                        btVector3 start_pos(static_cast<double>(positionXYZ[0]),
+                            static_cast<double>(positionXYZ[1]),
+                            static_cast<double>(positionXYZ[2]));
+
+                        // Assuming rotationXYZ are Euler angles in degrees (X, Y, Z - Roll, Pitch, Yaw)
+                        // Convert degrees to radians for Bullet's quaternion creation
+                        const double DEG_TO_RAD = SIMD_PI / 180.0;
+                        btQuaternion start_ori;
+                        start_ori.setEulerZYX(static_cast<double>(rotationXYZ[2]) * DEG_TO_RAD, // Z (Yaw)
+                            static_cast<double>(rotationXYZ[1]) * DEG_TO_RAD, // Y (Pitch)
+                            static_cast<double>(rotationXYZ[0]) * DEG_TO_RAD); // X (Roll)
+
+                        sim->resetBasePositionAndOrientation(object_id, start_pos, start_ori);
+
+                        // --- Apply Joint Angles ---
+                        for (int j = 0; j < numJoints; ++j) {
+                            if (j < jointAngles.size()) {
+                                double targetPositionRad = static_cast<double>(jointAngles[j]) * DEG_TO_RAD;
+
+                                b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
+                                motorArgs.m_targetPosition = targetPositionRad; // Target position in radians
+                                motorArgs.m_targetVelocity = 1.0;
+                                motorArgs.m_kp = 0.1;
+                                motorArgs.m_kd = 0.5;
+                                motorArgs.m_maxTorqueValue = 1000.0;
+
+                                sim->setJointMotorControl(object_id, j, motorArgs);
+                            }
+                        }
                 }
             );
         }
@@ -284,10 +303,7 @@ public:
                 last_event_time = clock::now();
             }
 
-            // Freeze base position and velocity for all loaded URDF humanoids
-            int i = 0; // Use first grid position for simplicity
-            int j = 0;
-            sim->resetBasePositionAndOrientation(agent_ids[0], start_pos, start_ori);
+            //sim->resetBasePositionAndOrientation(agent_ids[0], start_pos, start_ori);
             sim->resetBaseVelocity(agent_ids[0], btVector3(0, 0, 0), btVector3(0, 0, 0));
 
             // Step simulation to apply joint changes
