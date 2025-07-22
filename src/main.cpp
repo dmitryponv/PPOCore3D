@@ -50,7 +50,7 @@ void eval(Env& env, torch::Device& device, const std::string& actor_model, float
 
 void animate(Env& env, int anim_skip_steps = 1) {
     std::cout << "Animating with skip steps: " << anim_skip_steps << std::endl;
-    
+    env.EnableManipulator();
     // Call the environment's animate function
     env.animate();
 }

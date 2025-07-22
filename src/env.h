@@ -40,6 +40,7 @@ public:
     virtual void animate() = 0;
     virtual Space observation_space() const = 0;
     virtual Space action_space() const = 0;
+    virtual void EnableManipulator() = 0;
     int GetGridCount() const { return (grid_size * grid_size); }
     int grid_size = 1;
     float grid_space = 20.0f;
@@ -62,7 +63,6 @@ public:
 
         // Load animation XML once
         LoadAnimationXML();
-        EnableManipulator();
     }
     virtual ~Env3D() override = default;
 
@@ -70,7 +70,6 @@ public:
     std::vector<int> agent_ids;
     std::vector<int> target_ids;
     /// ANIMATION CODE
-    std::vector<double> saved_joint_positions; // Store joint positions
     int selected_joint_index = 0; // Track selected joint
     int selected_object_id = 0; // Track selected humanoid
     int current_animation_frame = 0; // Track current animation frame
@@ -81,44 +80,88 @@ public:
     tinyxml2::XMLDocument animation_doc;
 
     Manipulator* manipulator;
-
-    void EnableManipulator()
+ 
+    void EnableManipulator() override
     {
         HINSTANCE hInstance = GetModuleHandle(NULL);
-        int nCmdShow = SW_SHOWNORMAL; // Or whatever you get from WinMain
+        int nCmdShow = SW_SHOWNORMAL;
 
         try {
-            manipulator = new Manipulator(hInstance, 100, 100, 400, 300, "Robot Arm Control", 3);
-            // Create a manipulator for a 3-joint arm
+            if (!sim || agent_ids.empty()) {
+                MessageBoxA(NULL, "Simulator not initialized or no agents loaded. Cannot enable manipulator.", "Error", MB_ICONERROR);
+                return;
+            }
+
+            int object_id = agent_ids[0]; // Assuming agent_ids[0] holds the unique ID of the robot
+
+            int numJoints = sim->getNumJoints(object_id);
+
+            if (numJoints <= 0) {
+                MessageBoxA(NULL, "No joints found for the agent. Manipulator not enabled.", "Info", MB_OK | MB_ICONINFORMATION);
+                return;
+            }
+
+            manipulator = new Manipulator(hInstance, 100, 100, 400, 150 + numJoints * 40, "Robot Arm Control", numJoints);
             manipulator->Show(nCmdShow);
 
-            // Set joint ranges (e.g., Joint 1 from 0 to 180 degrees)
-            manipulator->SetJointRange(0, 0, 180);
-            manipulator->SetJointRange(1, -90, 90);
-            manipulator->SetJointRange(2, 0, 360);
+            // Declare joint_positions here, so it's a mutable variable that can be captured by reference
+            std::vector<double> joint_positions(numJoints);
 
-            // Set frame number range
+            for (int j = 0; j < numJoints; ++j) {
+                b3JointInfo jointInfo;
+                sim->getJointInfo(object_id, j, &jointInfo);
+
+                const double RAD_TO_DEG = 180.0 / SIMD_PI;
+
+                int minAngle = static_cast<int>(jointInfo.m_jointLowerLimit * RAD_TO_DEG);
+                int maxAngle = static_cast<int>(jointInfo.m_jointUpperLimit * RAD_TO_DEG);
+
+                if (minAngle >= maxAngle) {
+                    minAngle = -180;
+                    maxAngle = 180;
+                }
+
+                manipulator->SetJointRange(j, minAngle, maxAngle);
+
+                // Optional: Initialize joint_positions with current joint states
+                b3JointSensorState state;
+                sim->getJointState(object_id, j, &state);
+                joint_positions[j] = state.m_jointPosition;
+            }
+
             manipulator->SetFrameRange(0, 500);
 
-            // Set a callback to get updates
             manipulator->SetOnManipulatorChangeCallback(
-                [&](const std::vector<int>& jointAngles, int frameNumber) {
+                // Capture 'this' by reference (for sim, agent_ids etc.)
+                // Capture joint_positions by reference so it can be modified.
+                // Remove 'numJoints' and 'object_id' from explicit capture if they are
+                // already covered by default capture 'this' or other means.
+                [&, object_id, numJoints](const std::vector<int>& jointAngles, int frameNumber) { // Fix: removed '&joint_positions' if '&' default capture is used.
+                    // object_id and numJoints are captured here as they are local to EnableManipulator
                     std::cout << "Joint Angles: [";
                     for (int angle : jointAngles) {
                         std::cout << angle << " ";
                     }
                     std::cout << "], Frame: " << frameNumber << std::endl;
 
-                    // Here you would typically update your 3D model, animation, etc.
+                    for (int j = 0; j < numJoints; ++j) {
+                        if (j < jointAngles.size()) {
+                            const double DEG_TO_RAD = SIMD_PI / 180.0;
+                            // Now joint_positions is non-const, so assignment is allowed.
+                            double joint_positions = static_cast<double>(jointAngles[j]) * DEG_TO_RAD; // Fix: Assignment to non-const
+
+                            b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
+                            motorArgs.m_targetPosition = joint_positions;
+                            motorArgs.m_targetVelocity = 1.0;
+                            motorArgs.m_kp = 0.1;
+                            motorArgs.m_kd = 0.5;
+                            motorArgs.m_maxTorqueValue = 1000.0;
+
+                            sim->setJointMotorControl(object_id, j, motorArgs);
+                        }
+                    }
                 }
             );
-
-            //// Main message loop (if you're not using GraphWindowManager's implicit loop)
-            //MSG msg = {};
-            //while (GetMessage(&msg, NULL, 0, 0)) {
-            //    TranslateMessage(&msg);
-            //    DispatchMessage(&msg);
-            //}
         }
         catch (const std::runtime_error& e) {
             MessageBoxA(NULL, e.what(), "Error", MB_ICONERROR);
