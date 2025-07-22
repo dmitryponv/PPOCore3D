@@ -99,11 +99,27 @@ public:
                 return;
             }
 
-            manipulator = new Manipulator(hInstance, 100, 100, 400, 150 + numJoints * 40, "Robot Arm Control", numJoints);
+            // Collect joint names
+            std::vector<std::string> jointNames;
+            for (int j = 0; j < numJoints; ++j) {
+                b3JointInfo jointInfo;
+                sim->getJointInfo(object_id, j, &jointInfo);
+                jointNames.push_back(jointInfo.m_jointName); // Assuming m_jointName is a char* or std::string
+            }
+
+            // Pass joint names to the Manipulator constructor instead of just the count
+            manipulator = new Manipulator(hInstance, 100, 100, 400, 350 + numJoints * 40, "Robot Arm Control", jointNames);
             manipulator->Show(nCmdShow);
 
-            // Declare joint_positions here, so it's a mutable variable that can be captured by reference
-            std::vector<double> joint_positions(numJoints);
+            // Set default position ranges (-1.0 to +1.0 with 0.1 increment, so -10 to 10 scaled)
+            manipulator->SetPositionRange(0, -1.0, 1.0); // X
+            manipulator->SetPositionRange(1, -1.0, 1.0); // Y
+            manipulator->SetPositionRange(2, -1.0, 1.0); // Z
+
+            // Set default rotation ranges (e.g., -180 to 180 degrees)
+            manipulator->SetRotationRange(0, -180, 180); // Roll
+            manipulator->SetRotationRange(1, -180, 180); // Pitch
+            manipulator->SetRotationRange(2, -180, 180); // Yaw
 
             for (int j = 0; j < numJoints; ++j) {
                 b3JointInfo jointInfo;
@@ -118,17 +134,17 @@ public:
                     minAngle = -180;
                     maxAngle = 180;
                 }
-
                 manipulator->SetJointRange(j, minAngle, maxAngle);
 
                 // Optional: Initialize joint_positions with current joint states
                 b3JointSensorState state;
                 sim->getJointState(object_id, j, &state);
-                joint_positions[j] = state.m_jointPosition;
+                manipulator->SetCurrentJointAngles({ static_cast<int>(state.m_jointPosition * RAD_TO_DEG) }); // Update UI
             }
 
-            manipulator->SetFrameRange(0, 500);
+            manipulator->SetFrameRange(0, 500); // Example: 0 to 500 frames
 
+            // Set the callback for manipulator changes and button clicks
             manipulator->SetOnManipulatorChangeCallback(
                 [&, object_id, numJoints](ManipulatorAction action,
                     const std::vector<int>& positionXYZ_scaled,
@@ -190,6 +206,7 @@ public:
                         }
                 }
             );
+
         }
         catch (const std::runtime_error& e) {
             MessageBoxA(NULL, e.what(), "Error", MB_ICONERROR);

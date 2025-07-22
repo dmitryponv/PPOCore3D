@@ -46,14 +46,16 @@ public:
         int frameNumber)>;
 
     // Constructor: Creates the manipulator window and its controls
+    // Now accepts a vector of joint names instead of just a count
     Manipulator(HINSTANCE hInstance, int initialX, int initialY, int initialWidth, int initialHeight,
-        const std::string& title, int numberOfJoints)
+        const std::string& title, const std::vector<std::string>& jointNames)
         : m_hInstance(hInstance),
         m_hWnd(NULL),
         m_windowWidth(initialWidth),
         m_windowHeight(initialHeight),
         m_title(title),
-        m_numberOfJoints(numberOfJoints),
+        m_numberOfJoints(static_cast<int>(jointNames.size())), // Set count from names vector
+        m_jointNames(jointNames), // Store joint names
         m_frameNumber(0)
     {
         // Initialize position and rotation values
@@ -65,7 +67,7 @@ public:
         m_positionMinMax.resize(3, { -10, 10 }); // Default: -1.0 to +1.0 (scaled by 10)
         m_rotationMinMax.resize(3, { -180, 180 }); // Example: -180 to 180 degrees
 
-        // Initialize joint angles to 0
+        // Initialize joint angles to 0, resized based on actual number of joints
         m_jointAngles.resize(m_numberOfJoints, 0);
         m_jointMinMax.resize(m_numberOfJoints, { 0, 360 }); // Default range for joints
 
@@ -242,7 +244,8 @@ public:
                 m_jointAngles[i] = angles[i];
                 if (m_trackbars.size() > i && m_trackbars[i]) {
                     SendMessage(m_trackbars[i], TBM_SETPOS, TRUE, m_jointAngles[i]);
-                    std::string labelText = "Joint " + std::to_string(i + 1) + ": " + std::to_string(angles[i]);
+                    // Use the actual joint name here
+                    std::string labelText = m_jointNames[i] + ": " + std::to_string(angles[i]);
                     SetWindowTextA(m_jointLabels[i], labelText.c_str());
                 }
             }
@@ -268,6 +271,7 @@ private:
     int m_windowHeight;
     std::string m_title;
     int m_numberOfJoints;
+    std::vector<std::string> m_jointNames; // New member to store joint names
 
     // Base position/rotation controls
     std::vector<HWND> m_positionSliders;
@@ -303,10 +307,10 @@ private:
     void CreateControls() {
         int yPos = 20; // Starting Y position
         int labelWidth = 60; // Increased for "Pos X:" and "Rot X:"
-        int jointLabelWidth = 100; // Wider for "Joint XX:"
-        int trackbarWidth = m_windowWidth - 70;
-        int controlHeight = 25;
+        int jointLabelWidth = 120; // Further widened for custom joint names
         int padding = 10;
+        int trackbarWidth = m_windowWidth - (padding + jointLabelWidth + padding); // Adjusted for new label width
+        int controlHeight = 25;
         int columnWidth = (m_windowWidth - 2 * padding) / 3; // Divide client area into 3 columns
 
         // --- Position (XYZ) Sliders ---
@@ -375,10 +379,11 @@ private:
         yPos += controlHeight + 2 * padding;
 
         for (int i = 0; i < m_numberOfJoints; ++i) {
+            // Use the actual joint name from m_jointNames
             HWND hLabel = CreateWindowExA(
-                0, "STATIC", ("Joint " + std::to_string(i + 1) + ":").c_str(),
+                0, "STATIC", (m_jointNames[i] + ":").c_str(), // Use custom joint name
                 WS_CHILD | WS_VISIBLE | SS_LEFT,
-                padding, yPos, jointLabelWidth, controlHeight, // Use wider label for joints
+                padding, yPos, jointLabelWidth, controlHeight,
                 m_hWnd, NULL, m_hInstance, NULL
             );
             m_jointLabels.push_back(hLabel);
@@ -518,7 +523,8 @@ private:
             else if (id >= IDC_TRACKBAR_JOINT_BASE && id < IDC_TRACKBAR_JOINT_BASE + m_numberOfJoints) {
                 int jointIndex = id - IDC_TRACKBAR_JOINT_BASE;
                 m_jointAngles[jointIndex] = pos;
-                std::string labelText = "Joint " + std::to_string(jointIndex + 1) + ": " + std::to_string(pos);
+                // Use the actual joint name here
+                std::string labelText = m_jointNames[jointIndex] + ": " + std::to_string(pos);
                 SetWindowTextA(m_jointLabels[jointIndex], labelText.c_str());
                 if (m_callback) {
                     m_callback(ManipulatorAction::SLIDER_CHANGE, m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
