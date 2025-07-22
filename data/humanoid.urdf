@@ -139,6 +139,34 @@
 			</geometry>
 		</collision>
 	</link>
+
+	<link name="right_shoulder_flex_link">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0.001"/>
+			<inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
+		</inertial>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<sphere radius="0.001"/>
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="right_shoulder_out_link">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0.001"/>
+			<inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
+		</inertial>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<sphere radius="0.001"/>
+			</geometry>
+		</collision>
+	</link>
 	
 	<link name="right_lower_arm_object">
 		<inertial>
@@ -164,6 +192,34 @@
 			<origin rpy="-2.35619 0.61548 -1.30900" xyz="0.08000 0.08000 -0.08000"/>
 			<geometry>
 				<box size="0.08000 0.08000 0.27713"/>
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="left_shoulder_flex_link">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0.001"/>
+			<inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
+		</inertial>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<sphere radius="0.001"/>
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="left_shoulder_out_link">
+		<inertial>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<mass value="0.001"/>
+			<inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
+		</inertial>
+		<collision>
+			<origin rpy="0 0 0" xyz="0 0 0"/>
+			<geometry>
+				<sphere radius="0.001"/>
 			</geometry>
 		</collision>
 	</link>
@@ -263,38 +319,78 @@
 		<limit lower="-0.7" upper="0.7" effort="100.0" velocity="10.0"/>
 	</joint>
 
-	<joint name="right_shoulder1" type="revolute">
+	<!-- Right Arm Joints -->
+	<joint name="right_shoulder_flex" type="revolute">
 		<parent link="torso_object"/>
-		<child link="right_upper_arm_object"/>
+		<child link="right_shoulder_flex_link"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 -0.17000 0.06000"/>
 		<axis xyz="0.00000 1.00000 0.00000"/>
 		<limit lower="-2.0" upper="2.0" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="right_elbow" type="revolute">
+
+	<joint name="right_shoulder_out" type="revolute">
+		<parent link="right_shoulder_flex_link"/>
+		<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+		<child link="right_shoulder_out_link"/>
+		<axis xyz="1.00000 0.00000 0.00000"/>
+		<limit lower="-1.5" upper="1.5" effort="100.0" velocity="10.0"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+	</joint>
+
+	<joint name="right_shoulder_rotate" type="revolute">
+		<parent link="right_shoulder_out_link"/>
+		<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+		<child link="right_upper_arm_object"/>
+		<axis xyz="0.00000 0.00000 1.00000"/>
+		<limit lower="-1.5" upper="1.5" effort="100.0" velocity="10.0"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+	</joint>
+
+	<joint name="right_elbow_flex" type="revolute">
 		<parent link="right_upper_arm_object"/>
 		<child link="right_lower_arm_object"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.18000 -0.18000 -0.18000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/>
-		<limit lower="0.0" upper="2.5" effort="100.0" velocity="10.0"/>
+		<axis xyz="0.00000 -1.00000 1.00000"/>
+		<limit lower="-2.0" upper="1.0" effort="100.0" velocity="10.0"/>
 	</joint>
 
-	<joint name="left_shoulder1" type="revolute">
+	<!-- Left Arm Joints -->
+	<joint name="left_shoulder_flex" type="revolute">
 		<parent link="torso_object"/>
-		<child link="left_upper_arm_object"/>
+		<child link="left_shoulder_flex_link"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.17000 0.06000"/>
 		<axis xyz="0.00000 1.00000 0.00000"/>
 		<limit lower="-2.0" upper="2.0" effort="100.0" velocity="10.0"/>
 	</joint>
-	<joint name="left_elbow" type="revolute">
+
+	<joint name="left_shoulder_out" type="revolute">
+		<parent link="left_shoulder_flex_link"/>
+		<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+		<child link="left_shoulder_out_link"/>
+		<axis xyz="-1.00000 0.00000 0.00000"/>
+		<limit lower="-1.5" upper="1.5" effort="100.0" velocity="10.0"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+	</joint>
+
+	<joint name="left_shoulder_rotate" type="revolute">
+		<parent link="left_shoulder_out_link"/>
+		<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+		<child link="left_upper_arm_object"/>
+		<axis xyz="0.00000 0.00000 -1.00000"/>
+		<limit lower="-1.5" upper="1.5" effort="100.0" velocity="10.0"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+	</joint>
+
+	<joint name="left_elbow_flex" type="revolute">
 		<parent link="left_upper_arm_object"/>
 		<child link="left_lower_arm_object"/>
 		<dynamics damping="1.0" friction="0.0001"/>
 		<origin rpy="0.00000 -0.00000 0.00000" xyz="0.18000 0.18000 -0.18000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/>
-		<limit lower="0.0" upper="2.5" effort="100.0" velocity="10.0"/>
+		<axis xyz="0.00000 -1.00000 -1.00000"/>
+		<limit lower="-2.0" upper="1.0" effort="100.0" velocity="10.0"/>
 	</joint>
 
 	<joint name="neck_joint" type="revolute">

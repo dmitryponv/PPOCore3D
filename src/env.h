@@ -339,12 +339,15 @@ public:
             // Load base rotation (Euler angles in degrees)
             tinyxml2::XMLElement* rotElem = frameElem->FirstChildElement("BaseRotation");
             btQuaternion loaded_ori;
+            double loaded_roll_deg;
+            double loaded_pitch_deg;
+            double loaded_yaw_deg;
             if (rotElem) {
-                double roll_deg = rotElem->DoubleAttribute("roll");
-                double pitch_deg = rotElem->DoubleAttribute("pitch");
-                double yaw_deg = rotElem->DoubleAttribute("yaw");
+                loaded_roll_deg = rotElem->DoubleAttribute("roll");
+                loaded_pitch_deg = rotElem->DoubleAttribute("pitch");
+                loaded_yaw_deg = rotElem->DoubleAttribute("yaw");
                 const double DEG_TO_RAD = SIMD_PI / 180.0;
-                loaded_ori.setEulerZYX(yaw_deg * DEG_TO_RAD, pitch_deg * DEG_TO_RAD, roll_deg * DEG_TO_RAD);
+                loaded_ori.setEulerZYX(loaded_yaw_deg * DEG_TO_RAD, loaded_pitch_deg * DEG_TO_RAD, loaded_roll_deg * DEG_TO_RAD);
             }
             else {
                 printf("Warning: BaseRotation not found for frame %d.\n", frame_number);
@@ -356,16 +359,12 @@ public:
             std::vector<double> pos_vec = { loaded_pos.x(), loaded_pos.y(), loaded_pos.z() };
             manipulator->SetCurrentPosition(pos_vec);
 
-            // Convert quaternion back to Euler for UI (approximate, for display)
-            btMatrix3x3 mat(loaded_ori);
-            btScalar roll_rad_bt, pitch_rad_bt, yaw_rad_bt; // Declare as btScalar
-            mat.getEulerZYX(yaw_rad_bt, pitch_rad_bt, roll_rad_bt); // Use btScalar variables
-            const double RAD_TO_DEG = 180.0 / SIMD_PI;
-            manipulator->SetCurrentRotation({ static_cast<int>(roll_rad_bt * RAD_TO_DEG),
-                                             static_cast<int>(pitch_rad_bt * RAD_TO_DEG),
-                                             static_cast<int>(yaw_rad_bt * RAD_TO_DEG) });
+            manipulator->SetCurrentRotation({ static_cast<int>(loaded_roll_deg),
+                                             static_cast<int>(loaded_pitch_deg),
+                                             static_cast<int>(loaded_yaw_deg) });
 
             // Load joint positions
+            const double RAD_TO_DEG = 180.0 / SIMD_PI;
             std::vector<int> loaded_joint_angles_degrees;
             int num_joints = sim->getNumJoints(object_id);
             loaded_joint_angles_degrees.resize(num_joints);
