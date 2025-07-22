@@ -60,9 +60,6 @@ public:
         sim->syncBodies();
         sim->setTimeStep(1. / 240.);
         sim->setGravity(btVector3(0, 0, -9.8));
-
-        // Load animation XML once
-        LoadAnimationXML();
     }
     virtual ~Env3D() override = default;
 
@@ -80,7 +77,8 @@ public:
     tinyxml2::XMLDocument animation_doc;
 
     Manipulator* manipulator;
- 
+    std::vector<double> joint_positions;
+
     void EnableManipulator() override
     {
         HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -132,52 +130,63 @@ public:
             manipulator->SetFrameRange(0, 500);
 
             manipulator->SetOnManipulatorChangeCallback(
-                // Capture 'this' by reference (for sim, agent_ids etc.)
-                // Capture joint_positions by reference if it's a member or local.
-                // object_id and numJoints are captured here as they are local to EnableManipulator
-                [&, object_id, numJoints](const std::vector<int>& positionXYZ,
-                    const std::vector<int>& rotationXYZ,
-                    const std::vector<int>& jointAngles,
+                [&, object_id, numJoints](ManipulatorAction action,
+                    const std::vector<int>& positionXYZ_scaled,
+                    const std::vector<int>& rotationXYZ_degrees,
+                    const std::vector<int>& jointAngles_degrees,
                     int frameNumber) {
-                        std::cout << "Position: [" << positionXYZ[0] << " " << positionXYZ[1] << " " << positionXYZ[2] << "], ";
-                        std::cout << "Rotation: [" << rotationXYZ[0] << " " << rotationXYZ[1] << " " << rotationXYZ[2] << "], ";
-                        std::cout << "Joint Angles: [";
-                        for (int angle : jointAngles) {
-                            std::cout << angle << " ";
-                        }
-                        std::cout << "], Frame: " << frameNumber << std::endl;
-
-                        // --- Apply Base Position and Orientation ---
-                        // Convert integer slider values (e.g., in degrees/units) to Bullet's required types (doubles/quaternions)
-                        // Assuming positionXYZ values are directly usable as coordinates (e.g., meters)
-                        btVector3 start_pos(static_cast<double>(positionXYZ[0]),
-                            static_cast<double>(positionXYZ[1]),
-                            static_cast<double>(positionXYZ[2]));
-
-                        // Assuming rotationXYZ are Euler angles in degrees (X, Y, Z - Roll, Pitch, Yaw)
-                        // Convert degrees to radians for Bullet's quaternion creation
-                        const double DEG_TO_RAD = SIMD_PI / 180.0;
-                        btQuaternion start_ori;
-                        start_ori.setEulerZYX(static_cast<double>(rotationXYZ[2]) * DEG_TO_RAD, // Z (Yaw)
-                            static_cast<double>(rotationXYZ[1]) * DEG_TO_RAD, // Y (Pitch)
-                            static_cast<double>(rotationXYZ[0]) * DEG_TO_RAD); // X (Roll)
-
-                        sim->resetBasePositionAndOrientation(object_id, start_pos, start_ori);
-
-                        // --- Apply Joint Angles ---
-                        for (int j = 0; j < numJoints; ++j) {
-                            if (j < jointAngles.size()) {
-                                double targetPositionRad = static_cast<double>(jointAngles[j]) * DEG_TO_RAD;
-
-                                b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-                                motorArgs.m_targetPosition = targetPositionRad; // Target position in radians
-                                motorArgs.m_targetVelocity = 1.0;
-                                motorArgs.m_kp = 0.1;
-                                motorArgs.m_kd = 0.5;
-                                motorArgs.m_maxTorqueValue = 1000.0;
-
-                                sim->setJointMotorControl(object_id, j, motorArgs);
+                        switch (action) {
+                        case ManipulatorAction::SLIDER_CHANGE: {
+                            std::cout << "Position: [" << static_cast<double>(positionXYZ_scaled[0]) / 10.0 << " "
+                                << static_cast<double>(positionXYZ_scaled[1]) / 10.0 << " "
+                                << static_cast<double>(positionXYZ_scaled[2]) / 10.0 << "], ";
+                            std::cout << "Rotation: [" << rotationXYZ_degrees[0] << " " << rotationXYZ_degrees[1] << " " << rotationXYZ_degrees[2] << "], ";
+                            std::cout << "Joint Angles: [";
+                            for (int angle : jointAngles_degrees) {
+                                std::cout << angle << " ";
                             }
+                            std::cout << "], Frame: " << frameNumber << std::endl;
+
+                            // Apply Base Position and Orientation
+                            btVector3 start_pos(static_cast<double>(positionXYZ_scaled[0]) / 10.0,
+                                static_cast<double>(positionXYZ_scaled[1]) / 10.0,
+                                static_cast<double>(positionXYZ_scaled[2]) / 10.0);
+
+                            const double DEG_TO_RAD = SIMD_PI / 180.0;
+                            btQuaternion start_ori;
+                            start_ori.setEulerZYX(static_cast<double>(rotationXYZ_degrees[2]) * DEG_TO_RAD, // Z (Yaw)
+                                static_cast<double>(rotationXYZ_degrees[1]) * DEG_TO_RAD, // Y (Pitch)
+                                static_cast<double>(rotationXYZ_degrees[0]) * DEG_TO_RAD); // X (Roll)
+
+                            sim->resetBasePositionAndOrientation(object_id, start_pos, start_ori);
+
+                            // Apply Joint Angles
+                            for (int j = 0; j < numJoints; ++j) {
+                                if (j < jointAngles_degrees.size()) {
+                                    double targetPositionRad = static_cast<double>(jointAngles_degrees[j]) * DEG_TO_RAD;
+
+                                    b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
+                                    motorArgs.m_targetPosition = targetPositionRad;
+                                    motorArgs.m_targetVelocity = 1.0;
+                                    motorArgs.m_kp = 0.1;
+                                    motorArgs.m_kd = 0.5;
+                                    motorArgs.m_maxTorqueValue = 1000.0;
+
+                                    sim->setJointMotorControl(object_id, j, motorArgs);
+                                }
+                            }
+                            break;
+                        }
+                        case ManipulatorAction::SAVE: {
+                            std::cout << "Save button clicked for frame: " << frameNumber << std::endl;
+                            saveRobotStateToXml(object_id, frameNumber, positionXYZ_scaled, rotationXYZ_degrees);
+                            break;
+                        }
+                        case ManipulatorAction::LOAD: {
+                            std::cout << "Load button clicked for frame: " << frameNumber << std::endl;
+                            loadRobotStateFromXml(object_id, frameNumber);
+                            break;
+                        }
                         }
                 }
             );
@@ -188,10 +197,189 @@ public:
         }
     }
 
-    void LoadAnimationXML() {
-        std::string xml_path = "animations/animation.xml";
-        animation_doc.Clear();
-        animation_doc.LoadFile(xml_path.c_str());
+    void saveRobotStateToXml(int object_id, int frame_number, const std::vector<int>& positionXYZ_scaled, const std::vector<int>& rotationXYZ_degrees) {
+        try {
+            if (agent_ids.empty()) {
+                printf("No humanoids available to save.\n");
+                return;
+            }
+
+            // Ensure animations directory exists
+            std::filesystem::create_directories("animations");
+
+            tinyxml2::XMLElement* root = animation_doc.FirstChildElement("Animation");
+            if (!root) {
+                root = animation_doc.NewElement("Animation");
+                animation_doc.InsertEndChild(root);
+            }
+
+            tinyxml2::XMLElement* frameElem = nullptr;
+            for (tinyxml2::XMLElement* elem = root->FirstChildElement("Frame"); elem; elem = elem->NextSiblingElement("Frame")) {
+                if (elem->IntAttribute("index") == frame_number) {
+                    frameElem = elem;
+                    break;
+                }
+            }
+
+            if (!frameElem) {
+                // If frame does not exist, create a new one and append it
+                frameElem = animation_doc.NewElement("Frame");
+                frameElem->SetAttribute("index", frame_number);
+                root->InsertEndChild(frameElem); // Insert the new frame directly
+            }
+            else {
+                // If frame exists, clear its children to update its content
+                frameElem->DeleteChildren();
+            }
+
+            // Save base position
+            tinyxml2::XMLElement* posElem = animation_doc.NewElement("BasePosition");
+            posElem->SetAttribute("x", static_cast<double>(positionXYZ_scaled[0]) / 10.0);
+            posElem->SetAttribute("y", static_cast<double>(positionXYZ_scaled[1]) / 10.0);
+            posElem->SetAttribute("z", static_cast<double>(positionXYZ_scaled[2]) / 10.0);
+            frameElem->InsertEndChild(posElem);
+
+            // Save base rotation (Euler angles in degrees)
+            tinyxml2::XMLElement* rotElem = animation_doc.NewElement("BaseRotation");
+            rotElem->SetAttribute("roll", rotationXYZ_degrees[0]);
+            rotElem->SetAttribute("pitch", rotationXYZ_degrees[1]);
+            rotElem->SetAttribute("yaw", rotationXYZ_degrees[2]);
+            frameElem->InsertEndChild(rotElem);
+
+            // Save joint positions
+            int num_joints = sim->getNumJoints(object_id);
+            for (int j = 0; j < num_joints; ++j) {
+                b3JointSensorState state;
+                if (sim->getJointState(object_id, j, &state)) {
+                    tinyxml2::XMLElement* jointElem = animation_doc.NewElement("Joint");
+                    jointElem->SetAttribute("index", j);
+                    jointElem->SetAttribute("position", state.m_jointPosition); // Store in radians
+                    frameElem->InsertEndChild(jointElem);
+                }
+                else {
+                    printf("Warning: Could not get state for joint %d.\n", j);
+                }
+            }
+
+            // No sorting needed, just save the document
+            animation_doc.SaveFile("animations/animation.xml");
+            printf("Robot state saved to animations/animation.xml for frame %d.\n", frame_number);
+
+        }
+        catch (const std::exception& e) {
+            printf("Exception in saveRobotStateToXml: %s\n", e.what());
+        }
+        catch (...) {
+            printf("Unknown exception in saveRobotStateToXml.\n");
+        }
+    }
+
+    // Function to load robot state from XML
+    void loadRobotStateFromXml(int object_id, int frame_number) {
+        try {
+            if (agent_ids.empty()) {
+                printf("No humanoids available to load state for.\n");
+                return;
+            }
+
+            tinyxml2::XMLError err = animation_doc.LoadFile("animations/animation.xml");
+            if (err != tinyxml2::XML_SUCCESS) {
+                printf("Failed to load animation.xml: %s\n", animation_doc.ErrorStr());
+                return;
+            }
+
+            tinyxml2::XMLElement* root = animation_doc.FirstChildElement("Animation");
+            if (!root) {
+                printf("Animation root element not found in XML.\n");
+                return;
+            }
+
+            tinyxml2::XMLElement* frameElem = nullptr;
+            for (tinyxml2::XMLElement* elem = root->FirstChildElement("Frame"); elem; elem = elem->NextSiblingElement("Frame")) {
+                if (elem->IntAttribute("index") == frame_number) {
+                    frameElem = elem;
+                    break;
+                }
+            }
+
+            if (!frameElem) {
+                printf("Frame %d not found in animation.xml.\n", frame_number);
+                return;
+            }
+
+            // Load base position
+            tinyxml2::XMLElement* posElem = frameElem->FirstChildElement("BasePosition");
+            btVector3 loaded_pos(0, 0, 0);
+            if (posElem) {
+                loaded_pos.setX(posElem->DoubleAttribute("x"));
+                loaded_pos.setY(posElem->DoubleAttribute("y"));
+                loaded_pos.setZ(posElem->DoubleAttribute("z"));
+            }
+            else {
+                printf("Warning: BasePosition not found for frame %d.\n", frame_number);
+            }
+
+            // Load base rotation (Euler angles in degrees)
+            tinyxml2::XMLElement* rotElem = frameElem->FirstChildElement("BaseRotation");
+            btQuaternion loaded_ori;
+            if (rotElem) {
+                double roll_deg = rotElem->DoubleAttribute("roll");
+                double pitch_deg = rotElem->DoubleAttribute("pitch");
+                double yaw_deg = rotElem->DoubleAttribute("yaw");
+                const double DEG_TO_RAD = SIMD_PI / 180.0;
+                loaded_ori.setEulerZYX(yaw_deg * DEG_TO_RAD, pitch_deg * DEG_TO_RAD, roll_deg * DEG_TO_RAD);
+            }
+            else {
+                printf("Warning: BaseRotation not found for frame %d.\n", frame_number);
+            }
+
+            sim->resetBasePositionAndOrientation(object_id, loaded_pos, loaded_ori);
+
+            // Update manipulator UI with loaded base position/rotation
+            std::vector<double> pos_vec = { loaded_pos.x(), loaded_pos.y(), loaded_pos.z() };
+            manipulator->SetCurrentPosition(pos_vec);
+
+            // Convert quaternion back to Euler for UI (approximate, for display)
+            btMatrix3x3 mat(loaded_ori);
+            btScalar roll_rad_bt, pitch_rad_bt, yaw_rad_bt; // Declare as btScalar
+            mat.getEulerZYX(yaw_rad_bt, pitch_rad_bt, roll_rad_bt); // Use btScalar variables
+            const double RAD_TO_DEG = 180.0 / SIMD_PI;
+            manipulator->SetCurrentRotation({ static_cast<int>(roll_rad_bt * RAD_TO_DEG),
+                                             static_cast<int>(pitch_rad_bt * RAD_TO_DEG),
+                                             static_cast<int>(yaw_rad_bt * RAD_TO_DEG) });
+
+            // Load joint positions
+            std::vector<int> loaded_joint_angles_degrees;
+            int num_joints = sim->getNumJoints(object_id);
+            loaded_joint_angles_degrees.resize(num_joints);
+
+            for (tinyxml2::XMLElement* jointElem = frameElem->FirstChildElement("Joint"); jointElem; jointElem = jointElem->NextSiblingElement("Joint")) {
+                int index = jointElem->IntAttribute("index");
+                double position_rad = jointElem->DoubleAttribute("position");
+                if (index >= 0 && index < num_joints) {
+                    b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
+                    motorArgs.m_targetPosition = position_rad;
+                    motorArgs.m_targetVelocity = 1.0;
+                    motorArgs.m_kp = 0.1;
+                    motorArgs.m_kd = 0.5;
+                    motorArgs.m_maxTorqueValue = 1000.0;
+                    sim->setJointMotorControl(object_id, index, motorArgs);
+
+                    loaded_joint_angles_degrees[index] = static_cast<int>(position_rad * RAD_TO_DEG);
+                }
+            }
+            manipulator->SetCurrentJointAngles(loaded_joint_angles_degrees);
+            manipulator->SetCurrentFrameNumber(frame_number); // Update frame number in UI
+
+            printf("Robot state loaded from animations/animation.xml for frame %d.\n", frame_number);
+
+        }
+        catch (const std::exception& e) {
+            printf("Exception in loadRobotStateFromXml: %s\n", e.what());
+        }
+        catch (...) {
+            printf("Unknown exception in loadRobotStateFromXml.\n");
+        }
     }
 
     // Remove anim_skip_steps argument from animate
@@ -209,100 +397,6 @@ public:
         using clock = std::chrono::steady_clock;
         auto last_event_time = clock::now();
         while (true && agent_ids.size() > 0) {
-            // Check for escape key
-
-            auto now = clock::now();
-            double elapsed = std::chrono::duration<double>(now - last_event_time).count();
-            b3KeyboardEventsData keyboardEvents;
-            sim->getKeyboardEvents(&keyboardEvents);
-            if (0 < keyboardEvents.m_numKeyboardEvents && elapsed >= 0.1) {
-                const b3KeyboardEvent& event = keyboardEvents.m_keyboardEvents[0];
-
-                if (event.m_keyCode == 27 && event.m_keyState == 1) { // ESC key
-                    printf("Animation mode exited.\n");
-                    return;
-                }
-                else if (event.m_keyCode == 115 && event.m_keyState == 1) { // 'S' key - Save positions
-                    saveJointPositions(current_animation_frame);
-                    printf("Joint positions saved.\n");
-                }
-                else if (event.m_keyCode == 114 && event.m_keyState == 1) { // 'R' key - Reset positions
-                    resetJointPositions(current_animation_frame);
-                    printf("Joint positions reset to saved state.\n");
-                }
-                else if (event.m_keyCode == 49 && event.m_keyState == 1) { // '1' key - Previous joint
-                    if (agent_ids.empty()) {
-                        printf("No humanoids available.\n");
-                    }
-                    else {
-                        int object_id = agent_ids[selected_object_id];
-                        int num_joints = sim->getNumJoints(object_id);
-                        selected_joint_index = (selected_joint_index - 1 + num_joints) % num_joints;
-
-                        // Get and print the joint name
-                        b3JointInfo jointInfo;
-                        if (sim->getJointInfo(object_id, selected_joint_index, &jointInfo)) {
-                            printf("Selected joint: %d - %s\n", selected_joint_index, jointInfo.m_linkName);
-                        }
-                        else {
-                            printf("Selected joint: %d\n", selected_joint_index);
-                        }
-                    }
-                }
-                else if (event.m_keyCode == 50 && event.m_keyState == 1) { // '2' key - Next joint
-                    if (agent_ids.empty()) {
-                        printf("No humanoids available.\n");
-                    }
-                    else {
-                        int object_id = agent_ids[selected_object_id];
-                        int num_joints = sim->getNumJoints(object_id);
-                        selected_joint_index = (selected_joint_index + 1) % num_joints;
-
-                        // Get and print the joint name
-                        b3JointInfo jointInfo;
-                        if (sim->getJointInfo(object_id, selected_joint_index, &jointInfo)) {
-                            printf("Selected joint: %d - %s\n", selected_joint_index, jointInfo.m_linkName);
-                        }
-                        else {
-                            printf("Selected joint: %d\n", selected_joint_index);
-                        }
-                    }
-                }
-                else if (event.m_keyCode == 51 && event.m_keyState == 1) { // '3' key - Increase position
-                    modifySelectedJointPosition(0.1);
-
-                    // Print current joint value
-                    if (!agent_ids.empty()) {
-                        int object_id = agent_ids[selected_object_id];
-                        b3JointSensorState state;
-                        if (sim->getJointState(object_id, selected_joint_index, &state)) {
-                            printf("Joint %d position: %.3f\n", selected_joint_index, state.m_jointPosition);
-                        }
-                    }
-                }
-                else if (event.m_keyCode == 52 && event.m_keyState == 1) { // '4' key - Decrease position
-                    modifySelectedJointPosition(-0.1);
-
-                    // Print current joint value
-                    if (!agent_ids.empty()) {
-                        int object_id = agent_ids[selected_object_id];
-                        b3JointSensorState state;
-                        if (sim->getJointState(object_id, selected_joint_index, &state)) {
-                            printf("Joint %d position: %.3f\n", selected_joint_index, state.m_jointPosition);
-                        }
-                    }
-                }
-                else if (event.m_keyCode == 53 && event.m_keyState == 1) { // '5' key - Previous animation frame
-                    current_animation_frame = std::max(0, current_animation_frame - 1);
-                    printf("Animation frame: %d\n", current_animation_frame);
-                }
-                else if (event.m_keyCode == 54 && event.m_keyState == 1) { // '6' key - Next animation frame
-                    current_animation_frame++;
-                    printf("Animation frame: %d\n", current_animation_frame);
-                }
-                last_event_time = clock::now();
-            }
-
             //sim->resetBasePositionAndOrientation(agent_ids[0], start_pos, start_ori);
             sim->resetBaseVelocity(agent_ids[0], btVector3(0, 0, 0), btVector3(0, 0, 0));
 
@@ -417,44 +511,6 @@ public:
             printf("Exception in resetJointPositions: %s\n", e.what());
         } catch (...) {
             printf("Unknown exception in resetJointPositions.\n");
-        }
-    }
-
-    void modifySelectedJointPosition(double delta) {
-        try {
-            if (agent_ids.empty()) {
-                printf("No humanoids available.\n");
-                return;
-            }
-            if (selected_object_id >= agent_ids.size()) {
-                selected_object_id = 0;
-            }
-            int object_id = agent_ids[selected_object_id];
-            int num_joints = sim->getNumJoints(object_id);
-            if (selected_joint_index >= num_joints) {
-                selected_joint_index = 0;
-            }
-
-            // Get current joint position
-            b3JointSensorState state;
-            if (sim->getJointState(object_id, selected_joint_index, &state)) {
-                double new_position = state.m_jointPosition + delta;
-
-                // Apply the new position
-                b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-                motorArgs.m_targetPosition = new_position;
-                motorArgs.m_targetVelocity = 1.0;
-                motorArgs.m_maxTorqueValue = 100.0;
-                sim->setJointMotorControl(object_id, selected_joint_index, motorArgs);
-
-                printf("Joint %d position: %.3f\n", selected_joint_index, new_position);
-            }
-        }
-        catch (const std::exception& e) {
-            printf("Exception in modifySelectedJointPosition: %s\n", e.what());
-        }
-        catch (...) {
-            printf("Unknown exception in modifySelectedJointPosition.\n");
         }
     }
 

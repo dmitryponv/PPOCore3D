@@ -26,10 +26,21 @@
 #define IDC_UPDOWN_FRAME 2000
 #define IDC_EDIT_FRAME 2001
 
+#define IDC_BUTTON_SAVE 4000
+#define IDC_BUTTON_LOAD 4001
+
+// Enum to specify the type of action in the callback
+enum class ManipulatorAction {
+    SLIDER_CHANGE,
+    SAVE,
+    LOAD
+};
+
 class Manipulator {
 public:
-    // Callback function type for when position, rotation, joint angles, or frame number change
-    using OnManipulatorChangeCallback = std::function<void(const std::vector<int>& positionXYZ,
+    // Callback function type for when position, rotation, joint angles, frame number, or buttons change
+    using OnManipulatorChangeCallback = std::function<void(ManipulatorAction action,
+        const std::vector<int>& positionXYZ,
         const std::vector<int>& rotationXYZ,
         const std::vector<int>& jointAngles,
         int frameNumber)>;
@@ -50,7 +61,8 @@ public:
         m_rotationValues.resize(3, 0); // X, Y, Z (Euler angles or similar)
 
         // Default ranges for position and rotation
-        m_positionMinMax.resize(3, { -100, 100 }); // Example: -100 to 100 units
+        // For 0.1 increment, scale by 10. So -1.0 to +1.0 becomes -10 to +10.
+        m_positionMinMax.resize(3, { -10, 10 }); // Default: -1.0 to +1.0 (scaled by 10)
         m_rotationMinMax.resize(3, { -180, 180 }); // Example: -180 to 180 degrees
 
         // Initialize joint angles to 0
@@ -118,14 +130,18 @@ public:
     }
 
     // Sets the range for a specific position trackbar (0=X, 1=Y, 2=Z)
-    void SetPositionRange(int index, int min, int max) {
+    // Values are scaled by 10 internally for 0.1 increments
+    void SetPositionRange(int index, double min, double max) {
         if (index >= 0 && index < 3) {
-            m_positionMinMax[index] = { min, max };
+            int scaledMin = static_cast<int>(min * 10.0);
+            int scaledMax = static_cast<int>(max * 10.0);
+            m_positionMinMax[index] = { scaledMin, scaledMax };
             if (m_positionSliders[index]) {
-                SendMessage(m_positionSliders[index], TBM_SETRANGEMIN, TRUE, min);
-                SendMessage(m_positionSliders[index], TBM_SETRANGEMAX, TRUE, max);
-                if (m_positionValues[index] < min) m_positionValues[index] = min;
-                if (m_positionValues[index] > max) m_positionValues[index] = max;
+                SendMessage(m_positionSliders[index], TBM_SETRANGEMIN, TRUE, scaledMin);
+                SendMessage(m_positionSliders[index], TBM_SETRANGEMAX, TRUE, scaledMax);
+                // Ensure current value is within new range (scaled)
+                if (m_positionValues[index] < scaledMin) m_positionValues[index] = scaledMin;
+                if (m_positionValues[index] > scaledMax) m_positionValues[index] = scaledMax;
                 SendMessage(m_positionSliders[index], TBM_SETPOS, TRUE, m_positionValues[index]);
             }
         }
@@ -149,7 +165,6 @@ public:
     void SetJointRange(int jointIndex, int min, int max) {
         if (jointIndex >= 0 && jointIndex < m_numberOfJoints) {
             m_jointMinMax[jointIndex] = { min, max };
-            // Ensure the trackbar exists before sending messages
             if (m_trackbars.size() > jointIndex && m_trackbars[jointIndex]) {
                 SendMessage(m_trackbars[jointIndex], TBM_SETRANGEMIN, TRUE, min);
                 SendMessage(m_trackbars[jointIndex], TBM_SETRANGEMAX, TRUE, max);
@@ -172,19 +187,79 @@ public:
         }
     }
 
-    // Sets the callback function to be invoked on value changes
+    // Sets the callback function to be invoked on value changes or button clicks
     void SetOnManipulatorChangeCallback(OnManipulatorChangeCallback callback) {
         m_callback = callback;
     }
 
-    // Get current position values
-    const std::vector<int>& GetPositionXYZ() const { return m_positionValues; }
+    // Get current position values (scaled integers)
+    const std::vector<int>& GetPositionXYZRaw() const { return m_positionValues; }
+    // Get current position values (converted to double)
+    std::vector<double> GetPositionXYZ() const {
+        std::vector<double> pos(3);
+        for (int i = 0; i < 3; ++i) pos[i] = static_cast<double>(m_positionValues[i]) / 10.0;
+        return pos;
+    }
     // Get current rotation values
     const std::vector<int>& GetRotationXYZ() const { return m_rotationValues; }
     // Get current joint angles
     const std::vector<int>& GetJointAngles() const { return m_jointAngles; }
     // Get current frame number
     int GetFrameNumber() const { return m_frameNumber; }
+
+    // --- New Public Setters to Update UI from External Code (e.g., Load) ---
+    void SetCurrentPosition(const std::vector<double>& pos) {
+        if (pos.size() == 3) {
+            for (int i = 0; i < 3; ++i) {
+                m_positionValues[i] = static_cast<int>(pos[i] * 10.0);
+                if (m_positionSliders[i]) {
+                    SendMessage(m_positionSliders[i], TBM_SETPOS, TRUE, m_positionValues[i]);
+                    const char* labels[] = { "Pos X:", "Pos Y:", "Pos Z:" };
+                    std::string labelText = std::string(labels[i]) + " " + std::to_string(pos[i]);
+                    SetWindowTextA(m_positionLabels[i], labelText.c_str());
+                }
+            }
+        }
+    }
+
+    void SetCurrentRotation(const std::vector<int>& rot) {
+        if (rot.size() == 3) {
+            for (int i = 0; i < 3; ++i) {
+                m_rotationValues[i] = rot[i];
+                if (m_rotationSliders[i]) {
+                    SendMessage(m_rotationSliders[i], TBM_SETPOS, TRUE, m_rotationValues[i]);
+                    const char* labels[] = { "Rot X:", "Rot Y:", "Rot Z:" };
+                    std::string labelText = std::string(labels[i]) + " " + std::to_string(rot[i]);
+                    SetWindowTextA(m_rotationLabels[i], labelText.c_str());
+                }
+            }
+        }
+    }
+
+    void SetCurrentJointAngles(const std::vector<int>& angles) {
+        if (angles.size() == m_numberOfJoints) {
+            for (int i = 0; i < m_numberOfJoints; ++i) {
+                m_jointAngles[i] = angles[i];
+                if (m_trackbars.size() > i && m_trackbars[i]) {
+                    SendMessage(m_trackbars[i], TBM_SETPOS, TRUE, m_jointAngles[i]);
+                    std::string labelText = "Joint " + std::to_string(i + 1) + ": " + std::to_string(angles[i]);
+                    SetWindowTextA(m_jointLabels[i], labelText.c_str());
+                }
+            }
+        }
+    }
+
+    void SetCurrentFrameNumber(int frame) {
+        m_frameNumber = frame;
+        if (m_editControl) {
+            SetWindowTextA(m_editControl, std::to_string(m_frameNumber).c_str());
+            // Also update up-down control's position
+            if (m_upDownControl) {
+                SendMessage(m_upDownControl, UDM_SETPOS, 0, MAKELPARAM(m_frameNumber, 0));
+            }
+        }
+    }
+    // --- End New Public Setters ---
 
 private:
     HINSTANCE m_hInstance;
@@ -197,8 +272,8 @@ private:
     // Base position/rotation controls
     std::vector<HWND> m_positionSliders;
     std::vector<HWND> m_positionLabels;
-    std::vector<int> m_positionValues;
-    std::vector<std::pair<int, int>> m_positionMinMax;
+    std::vector<int> m_positionValues; // Stored as scaled integers
+    std::vector<std::pair<int, int>> m_positionMinMax; // Stored as scaled integers
 
     std::vector<HWND> m_rotationSliders;
     std::vector<HWND> m_rotationLabels;
@@ -219,25 +294,30 @@ private:
     int m_frameMin = 0;
     int m_frameMax = 100;
 
+    // Save/Load buttons
+    HWND m_saveButton;
+    HWND m_loadButton;
+
     OnManipulatorChangeCallback m_callback;
 
     void CreateControls() {
         int yPos = 20; // Starting Y position
-        int labelWidth = 50;
-        int trackbarWidth = m_windowWidth - 70; // Adjusted for 3 sliders per row
+        int labelWidth = 60; // Increased for "Pos X:" and "Rot X:"
+        int jointLabelWidth = 100; // Wider for "Joint XX:"
+        int trackbarWidth = m_windowWidth - 70;
         int controlHeight = 25;
         int padding = 10;
-        int columnWidth = m_windowWidth / 3; // Divide window into 3 columns for sliders
+        int columnWidth = (m_windowWidth - 2 * padding) / 3; // Divide client area into 3 columns
 
         // --- Position (XYZ) Sliders ---
         const char* posLabels[] = { "Pos X:", "Pos Y:", "Pos Z:" };
         for (int i = 0; i < 3; ++i) {
-            int xOffset = i * columnWidth; // Position for each column
+            int xOffset = padding + i * columnWidth;
 
             HWND hLabel = CreateWindowExA(
                 0, "STATIC", posLabels[i],
                 WS_CHILD | WS_VISIBLE | SS_LEFT,
-                xOffset + padding, yPos, labelWidth, controlHeight,
+                xOffset, yPos, labelWidth, controlHeight,
                 m_hWnd, NULL, m_hInstance, NULL
             );
             m_positionLabels.push_back(hLabel);
@@ -245,25 +325,27 @@ private:
             HWND hTrackbar = CreateWindowExA(
                 0, TRACKBAR_CLASSA, "",
                 WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_TOOLTIPS | TBS_HORZ,
-                xOffset + padding, yPos + controlHeight, columnWidth - 2 * padding, controlHeight,
+                xOffset, yPos + controlHeight, columnWidth - padding, controlHeight,
                 m_hWnd, (HMENU)(IDC_TRACKBAR_POS_X + i), m_hInstance, NULL
             );
             m_positionSliders.push_back(hTrackbar);
 
             SendMessage(hTrackbar, TBM_SETRANGE, TRUE, MAKELPARAM(m_positionMinMax[i].first, m_positionMinMax[i].second));
             SendMessage(hTrackbar, TBM_SETPOS, TRUE, m_positionValues[i]);
+            SendMessage(hTrackbar, TBM_SETTICFREQ, 10, 0); // Tick every 10 units (for 0.1 increment)
+            SendMessage(hTrackbar, TBM_SETPAGESIZE, 0, 1); // Page size 1 unit (0.1 actual)
         }
-        yPos += (controlHeight * 2) + padding; // Move to next row after 2 rows of controls
+        yPos += (controlHeight * 2) + padding;
 
         // --- Rotation (XYZ) Sliders ---
         const char* rotLabels[] = { "Rot X:", "Rot Y:", "Rot Z:" };
         for (int i = 0; i < 3; ++i) {
-            int xOffset = i * columnWidth;
+            int xOffset = padding + i * columnWidth;
 
             HWND hLabel = CreateWindowExA(
                 0, "STATIC", rotLabels[i],
                 WS_CHILD | WS_VISIBLE | SS_LEFT,
-                xOffset + padding, yPos, labelWidth, controlHeight,
+                xOffset, yPos, labelWidth, controlHeight,
                 m_hWnd, NULL, m_hInstance, NULL
             );
             m_rotationLabels.push_back(hLabel);
@@ -271,31 +353,32 @@ private:
             HWND hTrackbar = CreateWindowExA(
                 0, TRACKBAR_CLASSA, "",
                 WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_TOOLTIPS | TBS_HORZ,
-                xOffset + padding, yPos + controlHeight, columnWidth - 2 * padding, controlHeight,
+                xOffset, yPos + controlHeight, columnWidth - padding, controlHeight,
                 m_hWnd, (HMENU)(IDC_TRACKBAR_ROT_X + i), m_hInstance, NULL
             );
             m_rotationSliders.push_back(hTrackbar);
 
             SendMessage(hTrackbar, TBM_SETRANGE, TRUE, MAKELPARAM(m_rotationMinMax[i].first, m_rotationMinMax[i].second));
             SendMessage(hTrackbar, TBM_SETPOS, TRUE, m_rotationValues[i]);
+            SendMessage(hTrackbar, TBM_SETTICFREQ, 10, 0); // Example: Tick every 10 degrees
+            SendMessage(hTrackbar, TBM_SETPAGESIZE, 0, 10);
         }
-        yPos += (controlHeight * 2) + padding; // Move to next section after rotation sliders
+        yPos += (controlHeight * 2) + padding;
 
-        // --- Joint Sliders (existing code, adjusted yPos) ---
-        // Add a separator or title for joint controls
+        // --- Joint Sliders ---
         CreateWindowExA(
             0, "STATIC", "Joint Controls:",
             WS_CHILD | WS_VISIBLE | SS_LEFT,
             padding, yPos + padding, m_windowWidth - 2 * padding, controlHeight,
             m_hWnd, NULL, m_hInstance, NULL
         );
-        yPos += controlHeight + 2 * padding; // Adjust yPos for the title and extra padding
+        yPos += controlHeight + 2 * padding;
 
         for (int i = 0; i < m_numberOfJoints; ++i) {
             HWND hLabel = CreateWindowExA(
                 0, "STATIC", ("Joint " + std::to_string(i + 1) + ":").c_str(),
                 WS_CHILD | WS_VISIBLE | SS_LEFT,
-                padding, yPos, labelWidth, controlHeight,
+                padding, yPos, jointLabelWidth, controlHeight, // Use wider label for joints
                 m_hWnd, NULL, m_hInstance, NULL
             );
             m_jointLabels.push_back(hLabel);
@@ -303,7 +386,7 @@ private:
             HWND hTrackbar = CreateWindowExA(
                 0, TRACKBAR_CLASSA, "",
                 WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_TOOLTIPS | TBS_HORZ,
-                padding + labelWidth, yPos, trackbarWidth, controlHeight,
+                padding + jointLabelWidth, yPos, trackbarWidth - (jointLabelWidth - labelWidth), controlHeight,
                 m_hWnd, (HMENU)(IDC_TRACKBAR_JOINT_BASE + i), m_hInstance, NULL
             );
             m_trackbars.push_back(hTrackbar);
@@ -316,7 +399,7 @@ private:
             yPos += controlHeight + padding;
         }
 
-        // --- Frame Number Up-Down control (existing code, adjusted yPos) ---
+        // --- Frame Number Up-Down control ---
         yPos += padding;
 
         m_frameLabel = CreateWindowExA(
@@ -343,8 +426,32 @@ private:
         SendMessage(m_upDownControl, UDM_SETRANGE, 0, MAKELPARAM(m_frameMax, m_frameMin));
         SendMessage(m_upDownControl, UDM_SETPOS, 0, MAKELPARAM(m_frameNumber, 0));
 
+        yPos += controlHeight + padding;
+
+        // --- Save and Load Buttons ---
+        int buttonWidth = 80;
+        int buttonHeight = 30;
+        int buttonSpacing = 20;
+        int buttonsX = (m_windowWidth - (2 * buttonWidth + buttonSpacing)) / 2; // Center buttons
+
+        m_saveButton = CreateWindowExA(
+            0, "BUTTON", "Save",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            buttonsX, yPos + padding, buttonWidth, buttonHeight,
+            m_hWnd, (HMENU)IDC_BUTTON_SAVE, m_hInstance, NULL
+        );
+
+        m_loadButton = CreateWindowExA(
+            0, "BUTTON", "Load",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            buttonsX + buttonWidth + buttonSpacing, yPos + padding, buttonWidth, buttonHeight,
+            m_hWnd, (HMENU)IDC_BUTTON_LOAD, m_hInstance, NULL
+        );
+
+        yPos += buttonHeight + 2 * padding; // Move yPos past buttons
+
         // Adjust window height if controls exceed initial height
-        int requiredHeight = yPos + controlHeight + padding + 50;
+        int requiredHeight = yPos + 50; // Add some buffer at the bottom
         if (requiredHeight > m_windowHeight) {
             SetWindowPos(m_hWnd, NULL, 0, 0, m_windowWidth, requiredHeight, SWP_NOMOVE | SWP_NOZORDER);
             m_windowHeight = requiredHeight;
@@ -389,10 +496,11 @@ private:
                 int index = id - IDC_TRACKBAR_POS_X;
                 m_positionValues[index] = pos;
                 const char* labels[] = { "Pos X:", "Pos Y:", "Pos Z:" };
-                std::string labelText = std::string(labels[index]) + " " + std::to_string(pos);
+                // Display scaled value in label
+                std::string labelText = std::string(labels[index]) + " " + std::to_string(static_cast<double>(pos) / 10.0);
                 SetWindowTextA(m_positionLabels[index], labelText.c_str());
                 if (m_callback) {
-                    m_callback(m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
+                    m_callback(ManipulatorAction::SLIDER_CHANGE, m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
                 }
             }
             // Handle Rotation Sliders
@@ -403,7 +511,7 @@ private:
                 std::string labelText = std::string(labels[index]) + " " + std::to_string(pos);
                 SetWindowTextA(m_rotationLabels[index], labelText.c_str());
                 if (m_callback) {
-                    m_callback(m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
+                    m_callback(ManipulatorAction::SLIDER_CHANGE, m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
                 }
             }
             // Handle Joint Sliders
@@ -413,13 +521,13 @@ private:
                 std::string labelText = "Joint " + std::to_string(jointIndex + 1) + ": " + std::to_string(pos);
                 SetWindowTextA(m_jointLabels[jointIndex], labelText.c_str());
                 if (m_callback) {
-                    m_callback(m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
+                    m_callback(ManipulatorAction::SLIDER_CHANGE, m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
                 }
             }
         }
         break;
 
-        case WM_COMMAND: // Messages from controls (like up-down)
+        case WM_COMMAND: // Messages from controls (like up-down, buttons)
         {
             UINT id = LOWORD(wParam);
             UINT code = HIWORD(wParam);
@@ -435,7 +543,7 @@ private:
                     if (newFrame != m_frameNumber) {
                         m_frameNumber = newFrame;
                         if (m_callback) {
-                            m_callback(m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
+                            m_callback(ManipulatorAction::SLIDER_CHANGE, m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
                         }
                     }
                 }
@@ -457,10 +565,20 @@ private:
                     m_frameNumber = newFrame;
                     SetWindowTextA(m_editControl, std::to_string(m_frameNumber).c_str());
                     if (m_callback) {
-                        m_callback(m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
+                        m_callback(ManipulatorAction::SLIDER_CHANGE, m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
                     }
                 }
                 return TRUE;
+            }
+            else if (id == IDC_BUTTON_SAVE) {
+                if (m_callback) {
+                    m_callback(ManipulatorAction::SAVE, m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
+                }
+            }
+            else if (id == IDC_BUTTON_LOAD) {
+                if (m_callback) {
+                    m_callback(ManipulatorAction::LOAD, m_positionValues, m_rotationValues, m_jointAngles, m_frameNumber);
+                }
             }
         }
         break;
