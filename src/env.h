@@ -431,134 +431,32 @@ public:
         }
     }
 
-    // External function to save joint positions
-    void saveJointPositions(int frame = -1) {
-        try {
-            if (agent_ids.empty()) {
-                printf("No humanoids available to save.\n");
-                return;
-            }
-            int object_id = agent_ids[0]; // Only one humanoid
-            int num_joints = sim->getNumJoints(object_id);
-            std::vector<double> joint_positions;
-            for (int j = 0; j < num_joints; ++j) {
-                b3JointSensorState state;
-                if (sim->getJointState(object_id, j, &state)) {
-                    joint_positions.push_back(state.m_jointPosition);
-                } else {
-                    joint_positions.push_back(0.0);
-                }
-            }
-
-            // Ensure animations directory exists
-            std::filesystem::create_directories("animations");
-
-            // Use cached animation_doc
-            tinyxml2::XMLElement* root = animation_doc.FirstChildElement("Animation");
-            if (!root) {
-                root = animation_doc.NewElement("Animation");
-                animation_doc.InsertEndChild(root);
-            }
-
-            int frame_index = (frame >= 0) ? frame : current_animation_frame;
-            // Find or create frame element
-            tinyxml2::XMLElement* frameElem = nullptr;
-            for (tinyxml2::XMLElement* elem = root->FirstChildElement("Frame"); elem; elem = elem->NextSiblingElement("Frame")) {
-                if (elem->IntAttribute("index") == frame_index) {
-                    frameElem = elem;
-                    break;
-                }
-            }
-            if (!frameElem) {
-                frameElem = animation_doc.NewElement("Frame");
-                frameElem->SetAttribute("index", frame_index);
-                root->InsertEndChild(frameElem);
-            } else {
-                frameElem->DeleteChildren(); // Clear previous joint data
-            }
-
-            // Save joint positions
-            for (int j = 0; j < num_joints; ++j) {
-                tinyxml2::XMLElement* jointElem = animation_doc.NewElement("Joint");
-                jointElem->SetAttribute("index", j);
-                jointElem->SetAttribute("position", joint_positions[j]);
-                frameElem->InsertEndChild(jointElem);
-            }
-
-            // --- Sort <Frame> elements by 'index' attribute before saving ---
-            std::vector<tinyxml2::XMLElement*> frames;
-            for (tinyxml2::XMLElement* elem = root->FirstChildElement("Frame"); elem; elem = elem->NextSiblingElement("Frame")) {
-                frames.push_back(elem);
-            }
-            std::sort(frames.begin(), frames.end(), [](tinyxml2::XMLElement* a, tinyxml2::XMLElement* b) {
-                return a->IntAttribute("index") < b->IntAttribute("index");
-            });
-            for (tinyxml2::XMLElement* elem : frames) {
-                root->InsertEndChild(elem);
-            }
-            // --- End sorting ---
-
-            animation_doc.SaveFile("animations/animation.xml");
-        } catch (const std::exception& e) {
-            printf("Exception in saveJointPositions: %s\n", e.what());
-        } catch (...) {
-            printf("Unknown exception in saveJointPositions.\n");
-        }
-    }
-
-    // External function to reset joint positions
-    void resetJointPositions(int frame = -1) {
-        try {
-            if (agent_ids.empty()) {
-                printf("No humanoids available to reset.\n");
-                return;
-            }
-            int object_id = agent_ids[0]; // Only one humanoid
-            int num_joints = sim->getNumJoints(object_id);
-            std::vector<double> joint_positions = GetJointAnim(frame);
-            for (int j = 0; j < num_joints; ++j) {
-                b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-                motorArgs.m_targetPosition = joint_positions[j];
-                motorArgs.m_targetVelocity = 1.0; // Large value for instant movement
-                motorArgs.m_maxTorqueValue = 100.0; // Large torque for instant movement
-                sim->setJointMotorControl(object_id, j, motorArgs);
-            }
-        } catch (const std::exception& e) {
-            printf("Exception in resetJointPositions: %s\n", e.what());
-        } catch (...) {
-            printf("Unknown exception in resetJointPositions.\n");
-        }
-    }
-
     // Get joint animation for the current or last frame
     std::vector<double> GetJointAnim(int frame = -1) {
         std::vector<double> joint_positions;
-        tinyxml2::XMLElement* animation_root = animation_doc.FirstChildElement("Animation");
         int num_joints = 0;
         if (!agent_ids.empty()) {
             int object_id = agent_ids[0];
             num_joints = sim->getNumJoints(object_id);
         }
-        if (animation_doc.ErrorID() != 0 || !animation_root) {
-            // No animation file: return zeros
-            return std::vector<double>(num_joints, 0.0);
+        if (animation_doc.RootElement() == nullptr) {
+            tinyxml2::XMLError err = animation_doc.LoadFile("animations/animation.xml");
+            if (err != tinyxml2::XML_SUCCESS) {
+                printf("Failed to load animation.xml: %s\n", animation_doc.ErrorStr());
+                return std::vector<double>(num_joints, 0.0);
+                // No animation file: return zeros
+            }
         }
+        tinyxml2::XMLElement* animation_root = animation_doc.FirstChildElement("Animation");
         // Find the frame with the given frame number, or last if frame == -1
         tinyxml2::XMLElement* frameElem = nullptr;
         int last_index = -1;
-        tinyxml2::XMLElement* lastElem = nullptr;
         for (tinyxml2::XMLElement* elem = animation_root->FirstChildElement("Frame"); elem; elem = elem->NextSiblingElement("Frame")) {
             int idx = elem->IntAttribute("index");
-            if ((frame >= 0 && idx == frame)) {
+            if ((frame >= idx)) {
                 frameElem = elem;
-                break;
-            }
-            if (idx > last_index) {
-                last_index = idx;
-                lastElem = elem;
             }
         }
-        if (!frameElem && lastElem) frameElem = lastElem;
         if (!frameElem) return std::vector<double>(num_joints, 0.0);
         // Read joint positions
         for (tinyxml2::XMLElement* jointElem = frameElem->FirstChildElement("Joint"); jointElem; jointElem = jointElem->NextSiblingElement("Joint")) {

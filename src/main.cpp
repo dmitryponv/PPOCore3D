@@ -22,6 +22,7 @@
 #include "envs/PendulumEnv.h"
 #include "envs/RobotEnv.h"
 #include "envs/HumanoidEnv.h"
+#include "envs/HumanstandEnv.h"
 
 
 void train(
@@ -116,14 +117,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        HumanoidEnv env(device, 1);
+        HumanstandEnv env(device, 1);
         
         // Mode selection - 0: train, 1: eval, 2: animate
-        int mode = 2; // 0=train, 1=eval, 2=animate
+        int mode = 0; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode
         
         switch (mode) {
             case 0: // train
+                //train(env, hyperparameters, device, graph_manager, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
                 train(env, hyperparameters, device, graph_manager, "", "");
                 break;
             case 2: // animate
@@ -132,7 +134,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             case 1: // eval
             default:
                 {
-                    float fixedTimeStepS = 1. / 20.;
+                    float fixedTimeStepS = 1. / 50.;
                     eval(env, device, "./models/ppo_actor.pt", fixedTimeStepS);
                 }
                 break;

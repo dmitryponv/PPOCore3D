@@ -1,22 +1,22 @@
 #pragma once
 #include "env.h"
 
-class HumanoidEnv : public Env3D {
+class HumanstandEnv : public Env3D {
 private:
     // std::vector<std::vector<b3LinkState>> saved_link_states; // Remove unused
     // std::vector<btVector3> saved_base_positions; // Remove unused
     // std::vector<btQuaternion> saved_base_orientations; // Remove unused
 
 public:
-    HumanoidEnv(torch::Device& device, int grid_size = 1, float grid_space = 40.0f)
+    HumanstandEnv(torch::Device& device, int grid_size = 1, float grid_space = 40.0f)
         : Env3D(device, new b3RobotSimulatorClientAPI()) // Pass sim pointer to base
     {
 
         this->grid_size = grid_size; // Initialize inherited member
         this->grid_space = grid_space; // Initialize inherited member
 
-        start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis
-        start_pos = { 0,0,0.5 };
+        start_ori.setEulerZYX(0, 0, 0); // 90 degrees around Y-axis
+        start_pos = { 0,0,1.2 };
         agent_ids.clear();
 
         for (int i = 0; i < this->grid_size; ++i) { // Use this->grid_size
@@ -64,6 +64,8 @@ public:
 
         int id = agent_ids[index];
 
+        btVector3 start_pos(i * grid_space, j * grid_space, start_pos.z());
+
         sim->resetBasePositionAndOrientation(id, start_pos, start_ori);
         sim->resetBaseVelocity(id, btVector3(0, 0, 0), btVector3(0, 0, 0));
 
@@ -98,7 +100,6 @@ public:
         }
 
         // Get animation for this frame
-        auto anim = GetJointAnim(frame_index); //1 animation frame per second
 
         for (size_t i = 0; i < std::min(actions.size(), agent_ids.size()); ++i) {
             int id = agent_ids[i];
@@ -115,12 +116,11 @@ public:
                     continue;
                 }
 
-                float action_single = action[j].item<float>();
-                float anim_val = (j < anim.size()) ? anim[j] : 0.0f;
+                float action_single = action[j].item<float>()*5.0f;
 
                 b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-                motorArgs.m_maxTorqueValue = 200.0f;
-                motorArgs.m_targetPosition = action_single + anim_val;
+                motorArgs.m_maxTorqueValue = 50.0f;
+                motorArgs.m_targetPosition = action_single;
                 motorArgs.m_targetVelocity = max_velocity;
 
                 sim->setJointMotorControl(id, j, motorArgs);
