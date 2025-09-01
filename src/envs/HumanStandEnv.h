@@ -1,5 +1,5 @@
 #pragma once
-#include "env.h"
+#include "../env.h"
 
 class HumanstandEnv : public Env3D {
 private:
@@ -16,7 +16,7 @@ public:
         this->grid_space = grid_space; // Initialize inherited member
 
         start_ori.setEulerZYX(0, 0, 0); // 90 degrees around Y-axis
-        start_pos = { 0,0,1.2 };
+        start_pos = { 0,0,1.0 };
         agent_ids.clear();
 
         for (int i = 0; i < this->grid_size; ++i) { // Use this->grid_size
@@ -34,7 +34,7 @@ public:
                 args.m_useMultiBody = true;
                 args.m_flags = 0;
 
-                int id = sim->loadURDF("humanoid.urdf", args);
+                int id = sim->loadURDF("goat.urdf", args);
                 agent_ids.push_back(id);
             }
         }
@@ -45,8 +45,7 @@ public:
     Space observation_space() const override {
         if (agent_ids.empty()) return Space{ {0} };
         int num_joints = sim->getNumJoints(agent_ids[0]);
-        int obs_per_joint = 3 + 4 + 3 + 3; // pos + quat + linear vel + angular vel
-        return Space{ {num_joints * obs_per_joint} };
+        return Space{ {13 + num_joints * 21} };
     }
 
     Space action_space() const override {
@@ -116,10 +115,10 @@ public:
                     continue;
                 }
 
-                float action_single = action[j].item<float>()*5.0f;
+                float action_single = action[j].item<float>()*10.0f;
 
                 b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
-                motorArgs.m_maxTorqueValue = 50.0f;
+                motorArgs.m_maxTorqueValue = 200.0f;
                 motorArgs.m_targetPosition = action_single;
                 motorArgs.m_targetVelocity = max_velocity;
 
@@ -174,27 +173,80 @@ public:
 
     torch::Tensor get_observation(int id) {
         std::vector<float> obs;
-        int num_joints = sim->getNumJoints(id);
+
+        // 1. Get observations for the entire body (base link)
+        btVector3 base_position;     // Will store the position
+        btQuaternion base_orientation; // Will store the orientation
+        btVector3 base_linear_vel;   // Will store the linear velocity
+        btVector3 base_angular_vel;  // Will store the angular velocity
+
+        // Use the specified function signature
+        // Pass references to btVector3 and btQuaternion objects
+        sim->getBasePositionAndOrientation(id, base_position, base_orientation);
+        sim->getBaseVelocity(id, base_linear_vel, base_angular_vel);
+
+        // Base position
+        obs.push_back(static_cast<float>(base_position.getX()));
+        obs.push_back(static_cast<float>(base_position.getY()));
+        obs.push_back(static_cast<float>(base_position.getZ()));
+
+        // Base orientation (quaternion)
+        obs.push_back(static_cast<float>(base_orientation.getX())); // x component of quaternion
+        obs.push_back(static_cast<float>(base_orientation.getY())); // y component of quaternion
+        obs.push_back(static_cast<float>(base_orientation.getZ())); // z component of quaternion
+        obs.push_back(static_cast<float>(base_orientation.getW())); // w component of quaternion
+
+        // Base linear velocity
+        obs.push_back(static_cast<float>(base_linear_vel.getX()));
+        obs.push_back(static_cast<float>(base_linear_vel.getY()));
+        obs.push_back(static_cast<float>(base_linear_vel.getZ()));
+
+        // Base angular velocity
+        obs.push_back(static_cast<float>(base_angular_vel.getX()));
+        obs.push_back(static_cast<float>(base_angular_vel.getY()));
+        obs.push_back(static_cast<float>(base_angular_vel.getZ()));
+
+        // 2. Get observations for each link
+        int num_joints = sim->getNumJoints(id); // This also represents the number of links attached to joints
         for (int j = 0; j < num_joints; ++j) {
-            b3LinkState link_state;
+            b3LinkState link_state; // b3LinkState is likely from your PyBullet C++ API headers
             sim->getLinkState(id, j, 1, 0, &link_state);
 
-            obs.push_back(link_state.m_worldPosition[0]);
-            obs.push_back(link_state.m_worldPosition[1]);
-            obs.push_back(link_state.m_worldPosition[2]);
+            obs.push_back(static_cast<float>(link_state.m_worldPosition[0]));
+            obs.push_back(static_cast<float>(link_state.m_worldPosition[1]));
+            obs.push_back(static_cast<float>(link_state.m_worldPosition[2]));
 
-            obs.push_back(link_state.m_worldOrientation[0]);
-            obs.push_back(link_state.m_worldOrientation[1]);
-            obs.push_back(link_state.m_worldOrientation[2]);
-            obs.push_back(link_state.m_worldOrientation[3]);
+            obs.push_back(static_cast<float>(link_state.m_worldOrientation[0]));
+            obs.push_back(static_cast<float>(link_state.m_worldOrientation[1]));
+            obs.push_back(static_cast<float>(link_state.m_worldOrientation[2]));
+            obs.push_back(static_cast<float>(link_state.m_worldOrientation[3]));
 
-            obs.push_back(link_state.m_worldLinearVelocity[0]);
-            obs.push_back(link_state.m_worldLinearVelocity[1]);
-            obs.push_back(link_state.m_worldLinearVelocity[2]);
+            obs.push_back(static_cast<float>(link_state.m_worldLinearVelocity[0]));
+            obs.push_back(static_cast<float>(link_state.m_worldLinearVelocity[1]));
+            obs.push_back(static_cast<float>(link_state.m_worldLinearVelocity[2]));
 
-            obs.push_back(link_state.m_worldAngularVelocity[0]);
-            obs.push_back(link_state.m_worldAngularVelocity[1]);
-            obs.push_back(link_state.m_worldAngularVelocity[2]);
+            obs.push_back(static_cast<float>(link_state.m_worldAngularVelocity[0]));
+            obs.push_back(static_cast<float>(link_state.m_worldAngularVelocity[1]));
+            obs.push_back(static_cast<float>(link_state.m_worldAngularVelocity[2]));
+        }
+
+        // 3. Get observations for each joint, still without m_jointReactionForces
+        for (int j = 0; j < num_joints; ++j) {
+            b3JointSensorState joint_state; // b3JointSensorState is likely from your PyBullet C++ API headers
+            sim->getJointState(id, j, &joint_state);
+
+            // Joint position (angle for revolute/prismatic joints)
+            obs.push_back(static_cast<float>(joint_state.m_jointPosition));
+
+            // Joint velocity
+            obs.push_back(static_cast<float>(joint_state.m_jointVelocity));
+
+            // IMPORTANT: m_jointReactionForces is still removed because your previous error
+            // indicated it's not a member of your b3JointSensorState.
+            // If your headers *do* eventually have it, uncomment this.
+            for (int k = 0; k < 6; ++k) {
+                obs.push_back(static_cast<float>(joint_state.m_jointForceTorque[k]));
+            }
         }
 
         return torch::from_blob(obs.data(), { (int)obs.size() }).clone().to(mDevice);

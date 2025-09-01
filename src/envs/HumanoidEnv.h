@@ -1,5 +1,5 @@
 #pragma once
-#include "env.h"
+#include "../env.h"
 
 class HumanoidEnv : public Env3D {
 private:

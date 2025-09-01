@@ -1,6 +1,6 @@
 #pragma once
 #include "RobotSimulator.h"
-#include "env.h"
+#include "../env.h"
 #include "../CommonInterfaces/CommonGUIHelperInterface.h"
 #include "../CommonInterfaces/CommonExampleInterface.h"
 
@@ -113,7 +113,11 @@ public:
             float reward = -0.01f * distance - 0.01f;
             bool done = false;
 
-            if (distance < 2.0f) reward += 5.0f, done = true;
+            //if (distance < 2.0f)
+            //{
+            //    reward += 5.0f;
+            //    done = true;
+            //}
             //if (agent_positions[i][2] < 0.0f || target_positions[i][2] < 0.0f) reward -= 5.0f, done = true;
             //if (dx == 0.0f && dy == 0.0f) reward -= 5.0f, done = true;
             //if (agent_positions[i][0] < x_min || agent_positions[i][0] > x_max ||

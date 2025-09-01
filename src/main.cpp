@@ -76,7 +76,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     std::unordered_map<std::string, float> hyperparameters = {
         {"timesteps_per_batch", 1000},
         {"max_timesteps_per_episode", 500},
-        {"gamma", 0.99},
+        {"gamma", 0.9},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
         {"clip", 0.2},

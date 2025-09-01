@@ -1,6 +1,6 @@
 #pragma once
 #include "RobotSimulator.h"
-#include "env.h"
+#include "../env.h"
 
 class PendulumEnv : public Env {
 public:

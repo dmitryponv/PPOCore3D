@@ -1,6 +1,6 @@
 #pragma once
 #include "RobotSimulator.h"
-#include "env.h"
+#include "../env.h"
 
 class RobotEnv : public Env3D {
 public:
