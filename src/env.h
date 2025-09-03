@@ -34,16 +34,13 @@ public:
         std::vector<int> shape;
     };
 
-    virtual torch::Tensor reset(int index = -1) = 0;
-    virtual std::vector<std::tuple<torch::Tensor, float, bool, bool>> step(const std::vector<torch::Tensor>& actions, int frame_index) = 0;
+    virtual torch::Tensor reset() = 0;
+    virtual std::tuple<torch::Tensor, float, bool, bool> step(const torch::Tensor& actions, int frame_index) = 0;
     virtual void render() = 0;
     virtual void animate() = 0;
     virtual Space observation_space() const = 0;
     virtual Space action_space() const = 0;
     virtual void EnableManipulator() = 0;
-    int GetGridCount() const { return (grid_size * grid_size); }
-    int grid_size = 1;
-    float grid_space = 20.0f;
 };
 
 class Env3D : public Env {
@@ -64,8 +61,8 @@ public:
     virtual ~Env3D() override = default;
 
     b3RobotSimulatorClientAPI* sim;
-    std::vector<int> agent_ids;
-    std::vector<int> target_ids;
+    int agent_id = -1;
+    int target_id = -1;
     /// ANIMATION CODE
     int selected_joint_index = 0; // Track selected joint
     int selected_object_id = 0; // Track selected humanoid
@@ -85,14 +82,14 @@ public:
         int nCmdShow = SW_SHOWNORMAL;
 
         try {
-            if (!sim || agent_ids.empty()) {
+            if (!sim || agent_id == -1) {
                 MessageBoxA(NULL, "Simulator not initialized or no agents loaded. Cannot enable manipulator.", "Error", MB_ICONERROR);
                 return;
             }
 
-            int object_id = agent_ids[0]; // Assuming agent_ids[0] holds the unique ID of the robot
+            int object_id = agent_id;
 
-            int numJoints = sim->getNumJoints(object_id);
+            int numJoints = sim->getNumJoints(agent_id);
 
             if (numJoints <= 0) {
                 MessageBoxA(NULL, "No joints found for the agent. Manipulator not enabled.", "Info", MB_OK | MB_ICONINFORMATION);
@@ -103,7 +100,7 @@ public:
             std::vector<std::string> jointNames;
             for (int j = 0; j < numJoints; ++j) {
                 b3JointInfo jointInfo;
-                sim->getJointInfo(object_id, j, &jointInfo);
+                sim->getJointInfo(agent_id, j, &jointInfo);
                 jointNames.push_back(jointInfo.m_jointName); // Assuming m_jointName is a char* or std::string
             }
 
@@ -216,7 +213,7 @@ public:
 
     void saveRobotStateToXml(int object_id, int frame_number, const std::vector<int>& positionXYZ_scaled, const std::vector<int>& rotationXYZ_degrees) {
         try {
-            if (agent_ids.empty()) {
+            if (agent_id = -1) {
                 printf("No humanoids available to save.\n");
                 return;
             }
@@ -294,7 +291,7 @@ public:
     // Function to load robot state from XML
     void loadRobotStateFromXml(int object_id, int frame_number) {
         try {
-            if (agent_ids.empty()) {
+            if (agent_id = -1) {
                 printf("No humanoids available to load state for.\n");
                 return;
             }
@@ -412,9 +409,8 @@ public:
         // Run animation loop until escape is pressed
         using clock = std::chrono::steady_clock;
         auto last_event_time = clock::now();
-        while (true && agent_ids.size() > 0) {
-            //sim->resetBasePositionAndOrientation(agent_ids[0], start_pos, start_ori);
-            sim->resetBaseVelocity(agent_ids[0], btVector3(0, 0, 0), btVector3(0, 0, 0));
+        while (true && agent_id != -1) {
+            sim->resetBaseVelocity(agent_id, btVector3(0, 0, 0), btVector3(0, 0, 0));
 
             // Step simulation to apply joint changes
             sim->stepSimulation();
@@ -435,9 +431,8 @@ public:
     std::vector<double> GetJointAnim(int frame = -1) {
         std::vector<double> joint_positions;
         int num_joints = 0;
-        if (!agent_ids.empty()) {
-            int object_id = agent_ids[0];
-            num_joints = sim->getNumJoints(object_id);
+        if (agent_id != -1) {
+            num_joints = sim->getNumJoints(agent_id);
         }
         if (animation_doc.RootElement() == nullptr) {
             tinyxml2::XMLError err = animation_doc.LoadFile("animations/animation.xml");

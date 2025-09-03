@@ -2,27 +2,6 @@
 
 using namespace std;
 
-
-//#define DEBUG_TENSORS
-
-void print_tensor_inline(const std::string& name, const torch::Tensor& t, int precision = 4, int max_elements = 10) {
-#ifdef DEBUG_TENSORS
-	torch::Tensor flat = t.flatten().cpu();
-	std::cout << name << "=tensor([";
-	int64_t size = flat.size(0);
-	std::cout << std::fixed << std::setprecision(precision);
-	for (int64_t i = 0; i < std::min<int64_t>(size, max_elements / 2); ++i) {
-	    std::cout << flat[i].item<double>() << ", ";
-	}
-	if (size > max_elements) {
-	    std::cout << "...";
-	    for (int64_t i = size - max_elements / 2; i < size; ++i) {
-	        std::cout << ", " << flat[i].item<double>();
-	    }
-	}
-	std::cout << "])" << std::endl << std::endl;
-#endif
-}
 FeedForwardNNImpl::FeedForwardNNImpl(int in_dim, int out_dim, torch::Device& device) {
 	try {
 		layer1 = register_module("layer1", torch::nn::Linear(in_dim, 256));
@@ -148,27 +127,23 @@ void PPO::_log_train() {
 		int t_so_far = std::get<int>(logger["t_so_far"]);
 		int i_so_far = std::get<int>(logger["i_so_far"]);
 
-		vector<vector<int>> batch_lengths = std::get<vector<vector<int>>>(logger["batch_lengths"]);
+		vector<int> batch_lengths = std::get<vector<int>>(logger["batch_lengths"]);
 		float avg_ep_lens = 0.0;
 		if (!batch_lengths.empty()) {
 			float total_len = 0.0f;
 			int count = 0;
-			for (const auto& lengths : batch_lengths) {
-				total_len += std::accumulate(lengths.begin(), lengths.end(), 0.0f);
-				count += static_cast<int>(lengths.size());
-			}
+			total_len += std::accumulate(batch_lengths.begin(), batch_lengths.end(), 0.0f);
+			count += static_cast<int>(batch_lengths.size());
 			avg_ep_lens = (count > 0) ? (total_len / count) : 0.0f;
 		}
-		vector<vector<vector<float>>> batch_rewards = std::get<vector<vector<vector<float>>>>(logger["batch_rewards"]);
+		vector<vector<float>> batch_rewards = std::get<vector<vector<float>>>(logger["batch_rewards"]);
 		float avg_ep_rews = 0.0;
 		if (!batch_rewards.empty()) {
 			float sum_rews = 0.0;
 			int count = 0;
-			for (const auto& outer_rews : batch_rewards) {
-				for (const auto& ep_rews : outer_rews) {
-					sum_rews += std::accumulate(ep_rews.begin(), ep_rews.end(), 0.0f);
-					count++;
-				}
+			for (const auto& ep_rews : batch_rewards) {
+				sum_rews += std::accumulate(ep_rews.begin(), ep_rews.end(), 0.0f);
+				count++;
 			}
 			avg_ep_rews = (count > 0) ? (sum_rews / count) : 0.0f;
 		}
@@ -204,8 +179,8 @@ void PPO::_log_train() {
 		cout << "------------------------------------------------------" << endl;
 		cout << endl;
 
-		logger["batch_lengths"] = vector<vector<int>>{};
-		logger["batch_rewards"] = vector<vector<vector<float>>>{};
+		logger["batch_lengths"] = vector<int>{};
+		logger["batch_rewards"] = vector<vector<float>>{};
 		logger["actor_loss"] = torch::Tensor();
 
 		// Pause if return is greater than -5
@@ -232,11 +207,6 @@ std::pair<torch::Tensor, torch::Tensor> PPO::get_action(const torch::Tensor& obs
 		torch::Tensor action_tensor = dist.sample();
 		torch::Tensor log_prob = dist.log_prob(action_tensor);
 
-		print_tensor_inline("obs_tensor", obs_tensor);
-		print_tensor_inline("mean", mean);
-		print_tensor_inline("action_tensor", action_tensor);
-		print_tensor_inline("log_prob_tensor", log_prob);
-
 		return { action_tensor.detach(), log_prob.detach() };
 	}
 	catch (const std::exception& e) {
@@ -252,11 +222,6 @@ std::pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor
 		torch::Tensor action_tensor = dist.sample();
 		torch::Tensor log_prob = dist.log_prob(action_tensor);
 
-		print_tensor_inline("obs_tensor", obs_tensor);
-		print_tensor_inline("mean", mean);
-		print_tensor_inline("action_tensor", action_tensor);
-		print_tensor_inline("log_prob_tensor", log_prob);
-
 		return { action_tensor.detach(), log_prob.detach() };
 	}
 	catch (const std::exception& e) {
@@ -268,12 +233,9 @@ std::pair<torch::Tensor, torch::Tensor> PPO_Eval::get_action(const torch::Tensor
 pair<torch::Tensor, torch::Tensor> PPO::evaluate(const torch::Tensor& batch_obs, const torch::Tensor& batch_acts) {
 	try {
 		torch::Tensor V = critic->forward(batch_obs);
-		print_tensor_inline("V", V);
 		torch::Tensor mean = actor->forward(batch_obs);
-		print_tensor_inline("mean", mean);
 		NormalMultivariate dist(mean, std_dev, device);
 		torch::Tensor log_probs = dist.log_prob(batch_acts);
-		print_tensor_inline("log_probs", log_probs);
 		return { V, log_probs };
 	}
 	catch (const std::exception& e) {
@@ -282,19 +244,15 @@ pair<torch::Tensor, torch::Tensor> PPO::evaluate(const torch::Tensor& batch_obs,
 	}
 }
 
-torch::Tensor PPO::compute_rtgs(const vector<vector<float>>& batch_rewards) {
+torch::Tensor PPO::compute_rtgs(const vector<float>& batch_rewards) {
 	try {
 		vector<float> batch_rtgs;
-
-		for (auto it = batch_rewards.rbegin(); it != batch_rewards.rend(); ++it) {
-			const auto& ep_rews = *it;
 		float discounted_reward = 0;
-			for (auto rit = ep_rews.rbegin(); rit != ep_rews.rend(); ++rit) {
-				discounted_reward = *rit + discounted_reward * gamma;
+		for (auto rit = batch_rewards.rbegin(); rit != batch_rewards.rend(); ++rit)
+		{
+			discounted_reward = *rit + discounted_reward * gamma;
 			batch_rtgs.insert(batch_rtgs.begin(), discounted_reward);
 		}
-		}
-
 		return torch::tensor(batch_rtgs, torch::kFloat).to(device);
 	}
 	catch (const std::exception& e) {
@@ -325,10 +283,8 @@ void PPO::learn(int total_timesteps) {
 			auto [batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_lengths_vec] = rollout_train();
 
 			// Calculate total timesteps from batch_lengths_vec using std::accumulate
-			int total_batch_timesteps = std::accumulate(batch_lengths_vec.begin(), batch_lengths_vec.end(), 0,
-				[](int sum, const std::vector<int>& lengths) {
-					return sum + std::accumulate(lengths.begin(), lengths.end(), 0);
-				});
+			int total_batch_timesteps = std::accumulate(batch_lengths_vec.begin(), batch_lengths_vec.end(), 0);
+
 			t_so_far += total_batch_timesteps;
 			i_so_far += 1;
 
@@ -346,14 +302,6 @@ void PPO::learn(int total_timesteps) {
 			torch::Tensor A_k = batch_rtgs.unsqueeze(1) - V.detach();
 			A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10);
 
-			print_tensor_inline("batch_obs", batch_obs);
-			print_tensor_inline("batch_acts", batch_acts);
-			print_tensor_inline("batch_log_probs", batch_log_probs);
-			print_tensor_inline("batch_rtgs", batch_rtgs);
-			// batch_lengths_vec is now a vector<vector<int>>, not a tensor
-			print_tensor_inline("V", V);
-			print_tensor_inline("A_k", A_k);
-
 			for (int epoch = 0; epoch < n_updates_per_iteration; ++epoch) {
 				auto [V, curr_log_probs] = evaluate(batch_obs, batch_acts);
 
@@ -365,15 +313,6 @@ void PPO::learn(int total_timesteps) {
 				torch::Tensor critic_loss = torch::mse_loss(V, batch_rtgs.unsqueeze(1));
 				//torch::Tensor critic_loss = torch::mse_loss(V.squeeze(1), batch_rtgs);
 
-
-				print_tensor_inline("V", V);
-				print_tensor_inline("curr_log_probs", curr_log_probs);
-				print_tensor_inline("ratios", ratios);
-				print_tensor_inline("surr1", surr1);
-				print_tensor_inline("surr2", surr2);
-				print_tensor_inline("actor_loss", actor_loss);
-				print_tensor_inline("critic_loss", critic_loss);
-
 				actor_optim->zero_grad();
 				actor_loss.backward({}, true);
 				actor_optim->step();
@@ -383,9 +322,6 @@ void PPO::learn(int total_timesteps) {
 				critic_optim->step();
 
 				logger["actor_loss"] = actor_loss;
-
-				print_tensor_inline("actor_loss backward", actor_loss);
-				print_tensor_inline("critic_loss backward", critic_loss);
 			}
 
 			_log_train();
@@ -407,65 +343,52 @@ void PPO::learn(int total_timesteps) {
 }
 
 
-tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<std::vector<int>>> PPO::rollout_train() {
+tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<int>> PPO::rollout_train() {
 	try {
-		int grid_count = env.GetGridCount();
-
-		vector<vector<torch::Tensor>> batch_obs_vec(grid_count);
-		vector<vector<torch::Tensor>> batch_acts_vec(grid_count);
-		vector<vector<torch::Tensor>> batch_log_probs_vec(grid_count);
-		vector<vector<vector<float>>> batch_rewards(grid_count);
-		vector<vector<int>> batch_lengths_vec(grid_count);
-		vector<vector<float>> ep_rews(grid_count);
+		vector<torch::Tensor> batch_obs_vec;
+		vector<torch::Tensor> batch_acts_vec;
+		vector<torch::Tensor> batch_log_probs_vec;
+		vector<vector<float>> batch_rewards;
+		vector<int> batch_lengths_vec;
+		vector<float> ep_rews;
 
 		int t = 0;
 
-		vector<torch::Tensor> observations(grid_count);
-		vector<torch::Tensor> actions(grid_count);
-		vector<torch::Tensor> log_probs(grid_count);
+		torch::Tensor observations;
+
 		while (t < timesteps_per_batch) {
-			for (int i = 0; i < grid_count; i++)
-			{
-				ep_rews[i].clear();
-				observations[i] = env.reset(i);
-			}
+			ep_rews.clear();
+			observations = env.reset();
 			int frame_index = 0; // Reset at the start of each batch
 			for (int ep_t = 0; ep_t < max_timesteps_per_episode; ep_t++) {
 				t += 1;
-				for (int i = 0; i < grid_count; i++)
-				{
-					batch_obs_vec[i].push_back(observations[i]);
-					auto [action_tensor, log_prob] = get_action(observations[i]);
-					actions[i] = action_tensor;
-					log_probs[i] = log_prob;
-				}
+				batch_obs_vec.push_back(observations);
+				auto [action_tensor, log_prob] = get_action(observations);
 				// Pass frame_index to env.step
-				auto step_results = env.step(actions, frame_index);
+				auto step_results = env.step(action_tensor, frame_index);
 
-				for (int i = 0; i < grid_count; i++)
+				auto& [next_obs, rew, terminated, truncated] = step_results;
+				bool done = terminated || truncated;
+				ep_rews.push_back(rew);
+				observations = next_obs;
+				batch_acts_vec.push_back(action_tensor);
+				batch_log_probs_vec.push_back(log_prob);
+
+				if (max_timesteps_per_episode == ep_t+1 || done)
 				{
-					auto& [next_obs, rew, terminated, truncated] = step_results[i];
-					bool done = terminated || truncated;
-					ep_rews[i].push_back(rew);
-					observations[i] = next_obs;
-					batch_acts_vec[i].push_back(actions[i]);
-					batch_log_probs_vec[i].push_back(log_probs[i]);
-					if (max_timesteps_per_episode == ep_t+1 || done)
-					{
-						batch_lengths_vec[i].push_back(ep_rews[i].size());
-						batch_rewards[i].push_back(ep_rews[i]);
-						observations[i] = env.reset(i);
-						ep_rews[i].clear();
-						frame_index = 0; // Reset frame index for new episode
-					}
+					batch_lengths_vec.push_back(ep_rews.size());
+					batch_rewards.push_back(ep_rews);
+					observations = env.reset();
+					ep_rews.clear();
+					frame_index = 0; // Reset frame index for new episode
 				}
 				frame_index++; // Increment frame index each step
 			}
 		}
 
-		torch::Tensor batch_obs = torch::stack(flatten(batch_obs_vec)).to(torch::kFloat);
-		torch::Tensor batch_acts = torch::stack(flatten(batch_acts_vec)).to(torch::kFloat);
-		torch::Tensor batch_log_probs = torch::stack(flatten(batch_log_probs_vec)).to(torch::kFloat);
+		torch::Tensor batch_obs = torch::stack(batch_obs_vec).to(torch::kFloat);
+		torch::Tensor batch_acts = torch::stack(batch_acts_vec).to(torch::kFloat);
+		torch::Tensor batch_log_probs = torch::stack(batch_log_probs_vec).to(torch::kFloat);
 		torch::Tensor batch_rtgs = torch::cat([this, &batch_rewards]() {
 		std::vector<torch::Tensor> rtgs;
 			for (const auto& rewards : batch_rewards)
@@ -482,6 +405,7 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<st
 		throw;
 	}
 }
+
 
 PPO_Eval::PPO_Eval(Env& env, torch::Device& device, string actor_model)
 	: env(env), device(device) {
@@ -510,10 +434,8 @@ PPO_Eval::PPO_Eval(Env& env, torch::Device& device, string actor_model)
 void PPO_Eval::eval_policy(bool render, float fixedTimeStepS) {
 	try {
 		int ep_num = 0;
-		if (env.GetGridCount() < 1)
-			return;
 		while (true) {
-			auto obs_tensor = env.reset(0);
+			auto obs_tensor = env.reset();
 			// Use only the first observation
 			bool done = false;
 			float ep_ret = 0.0f;
@@ -525,7 +447,7 @@ void PPO_Eval::eval_policy(bool render, float fixedTimeStepS) {
 				// Wrap single action in a vector for batchi_step or use step with single action
 				auto step_results = env.step({ action_tensor }, frame_index);
 				// We expect one result since we passed one action
-				auto& [next_obs, rew, terminated, truncated] = step_results[0];
+				auto& [next_obs, rew, terminated, truncated] = step_results;
 
 				obs_tensor = next_obs;
 				ep_ret += rew;

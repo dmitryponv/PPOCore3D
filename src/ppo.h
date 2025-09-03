@@ -58,13 +58,13 @@ private:
 
     void _log_train();
 
-    torch::Tensor compute_rtgs(const std::vector<std::vector<float>>& batch_rewards);
+    torch::Tensor compute_rtgs(const std::vector<float>& batch_rewards);
 
     std::pair<torch::Tensor, torch::Tensor> get_action(const torch::Tensor& obs_tensor);
 
     std::pair<torch::Tensor, torch::Tensor> evaluate(const torch::Tensor& batch_obs, const torch::Tensor& batch_acts);
 
-    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<std::vector<int>>> rollout_train();
+    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<int>> rollout_train();
 
     Env& env;
     GraphWindowManager& graph_manager;
@@ -88,8 +88,8 @@ private:
         std::vector<torch::Tensor>,
         long long,
         torch::Tensor,
-        std::vector<std::vector<std::vector<float>>>,
-        std::vector<std::vector<int>>
+        std::vector<std::vector<float>>,
+        std::vector<int>
     >;
 
     std::unordered_map<std::string, LoggerValue> logger;
