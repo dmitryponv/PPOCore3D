@@ -1,14 +1,14 @@
 #pragma once
 #include "../env.h"
 
-class HumanoidEnv : public Env3D {
+class Humanoid3dEnv : public Env3D {
 private:
     // std::vector<std::vector<b3LinkState>> saved_link_states; // Remove unused
     // std::vector<btVector3> saved_base_positions; // Remove unused
     // std::vector<btQuaternion> saved_base_orientations; // Remove unused
 
 public:
-    HumanoidEnv(torch::Device& device)
+    Humanoid3dEnv(torch::Device& device)
         : Env3D(device, new b3RobotSimulatorClientAPI()) // Pass sim pointer to base
     {
         start_ori.setEulerZYX(0, M_PI_2, 0); // 90 degrees around Y-axis

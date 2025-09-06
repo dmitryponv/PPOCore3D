@@ -375,31 +375,25 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<in
 		while (t < timesteps_per_batch) {
 			ep_rews.clear();
 			observations = env.reset();
-			int frame_index = 0; // Reset at the start of each batch
-			for (int ep_t = 0; ep_t < max_timesteps_per_episode; ep_t++) {
+			int ep_t = 0;
+			for (; ep_t < max_timesteps_per_episode; ep_t++) {
 				t += 1;
 				batch_obs_vec.push_back(observations);
 				auto [action_tensor, log_prob] = get_action(observations);
 				// Pass frame_index to env.step
-				auto step_results = env.step(action_tensor, frame_index);
+				auto& [observations, rew, terminated, truncated] = env.step(action_tensor, ep_t);
 
-				auto& [next_obs, rew, terminated, truncated] = step_results;
 				bool done = terminated || truncated;
 				ep_rews.push_back(rew);
-				observations = next_obs;
 				batch_acts_vec.push_back(action_tensor);
 				batch_log_probs_vec.push_back(log_prob);
 
-				if (max_timesteps_per_episode == ep_t+1 || done)
-				{
-					batch_lengths_vec.push_back(ep_rews.size());
-					batch_rewards.push_back(ep_rews);
-					observations = env.reset();
-					ep_rews.clear();
-					frame_index = 0; // Reset frame index for new episode
-				}
-				frame_index++; // Increment frame index each step
+				if (done)
+					break;
 			}
+
+			batch_lengths_vec.push_back(ep_t + 1);// ep_rews.size());
+			batch_rewards.push_back(ep_rews);
 		}
 
 		torch::Tensor batch_obs = torch::stack(batch_obs_vec).to(torch::kFloat);

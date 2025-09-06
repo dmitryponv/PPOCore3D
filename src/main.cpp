@@ -120,7 +120,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        BasketballEnv env(device);
+        PendulumEnv env(device);
         
         // Mode selection - 0: train, 1: eval, 2: animate
         int mode = 0; // 0=train, 1=eval, 2=animate

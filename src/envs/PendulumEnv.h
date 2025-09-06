@@ -79,13 +79,13 @@ private:
     float g, m, l, dt;
     float max_speed, max_torque;
     std::vector<float> states; // State for multiple pendulums
-    float last_us; // Last applied torque for multiple pendulums
+    float last_us = 0.0f; // Last applied torque for multiple pendulums
     Space obs_space, act_space;
 
     std::mt19937 rng;
     std::uniform_real_distribution<float> dist;
 
-    torch::Tensor get_observation() const {
+    torch::Tensor get_observation() override {
         float theta = states[0];
         float theta_dot = states[1];
         return torch::tensor({ std::cos(theta), std::sin(theta), theta_dot }).to(mDevice);

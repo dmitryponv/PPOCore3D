@@ -2,10 +2,10 @@
 #include "RobotSimulator.h"
 #include "../env.h"
 
-class RobotEnv : public Env3D {
+class Robot3dEnv : public Env3D {
 public:
     // Modified constructor to take grid_size and grid_space
-    RobotEnv(torch::Device& device)
+    Robot3dEnv(torch::Device& device)
         : Env3D(device, new b3RobotSimulatorClientAPI())
     {
         bool valid_joints_initialized = false; // Flag to initialize validTorqueJoints once

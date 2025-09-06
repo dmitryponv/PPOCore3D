@@ -4,7 +4,7 @@
 #include "../CommonInterfaces/CommonGUIHelperInterface.h"
 #include "../CommonInterfaces/CommonExampleInterface.h"
 
-class AgentTargetEnv : public Env3D {
+class AgentTarget3dEnv : public Env3D {
 private:
     float x_min = -10.0f, x_max = 10.0f;
     float y_min = -10.0f, y_max = 10.0f;
@@ -15,7 +15,7 @@ private:
     std::uniform_real_distribution<float> dist_y;
 
 public:
-    AgentTargetEnv(torch::Device& device)
+    AgentTarget3dEnv(torch::Device& device)
         : Env3D(device, new b3RobotSimulatorClientAPI()),
         x_min(-10.0f), x_max(10.0f),
         y_min(-10.0f), y_max(10.0f),

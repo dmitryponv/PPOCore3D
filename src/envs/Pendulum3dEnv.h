@@ -6,10 +6,10 @@
 #include <string>
 
 // A 3D environment for simulating a double pendulum with two degrees of freedom.
-class Pendulum3DEnv : public Env3D {
+class Pendulum3dEnv : public Env3D {
 public:
     // Constructor. Loads the URDF and sets up the environment.
-    Pendulum3DEnv(torch::Device& device)
+    Pendulum3dEnv(torch::Device& device)
         : Env3D(device, new b3RobotSimulatorClientAPI())
     {
         // Load a plane for the ground.
