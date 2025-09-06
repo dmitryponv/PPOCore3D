@@ -1,0 +1,69 @@
+<?xml version="1.0" ?>
+<robot name="four_legged_creature">
+
+	<!-- Torso Link: The central body of the creature -->
+	<link name="torso_object">
+		<inertial>
+			<origin rpy="0.00000 -0.00000 0.00000" xyz="-0.01000 0.00000 -0.12000"/>
+			<mass value="8.90746"/>
+			<inertia ixx="0.21526" ixy="0.00001" ixz="0.00001" iyy="0.21526" iyz="0.00001" izz="0.21526"/>
+		</inertial>
+		<collision>
+			<origin rpy="-1.57080 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
+			<geometry>
+				<box size="0.14000 0.14000 0.14000"/>
+			</geometry>
+		</collision>
+	</link>
+	
+	<link name="temp">
+		<inertial>
+			<origin rpy="0.00000 -0.00000 0.00000" xyz="-0.01000 0.00000 -0.12000"/>
+			<mass value="8.90746"/>
+			<inertia ixx="0.21526" ixy="0.00001" ixz="0.00001" iyy="0.21526" iyz="0.00001" izz="0.21526"/>
+		</inertial>
+	</link>
+
+	<!-- Leg Links (4 total): Each leg is a single segment -->
+	<!-- Front Right Leg -->
+	<link name="front_right_leg_object">
+		<inertial>
+			<!-- Center of mass for a leg segment of length 0.34015 extending downwards from origin -->
+			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.5"/>
+			<mass value="4.75175"/>
+			<inertia ixx="0.09212" ixy="0.00001" ixz="0.00001" iyy="0.09212" iyz="0.00001" izz="0.09212"/>
+		</inertial>
+		<collision>
+			<!-- Geometry for the single leg segment -->
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.5"/>
+			<geometry>
+				<box size="0.08000 0.08000 0.50"/> <!-- Slightly smaller box for leg segment -->
+			</geometry>
+		</collision>
+	</link>
+
+
+	<!-- Joints -->
+	<joint name="pendulum_x" type="revolute">
+		<parent link="torso_object"/>
+		<child link="temp"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+		<!-- Position the joint at the front-right-bottom corner of the torso -->
+		<!-- Torso box is 0.14x0.14x0.14, so half-dimensions are 0.07 -->
+		<origin rpy="0.00000 0.00000 0.00000" xyz="0.07000 -0.07000 -0.07000"/>
+		<axis xyz="1.00000 0.00000 0.00000"/> <!-- Y-axis for outward rotation -->
+		<limit lower="-3.14" upper="3.14" effort="1000.0" velocity="1.0"/>
+	</joint>
+	<!-- Front Right Leg Joint: Revolute joint for outward rotation -->
+	<joint name="pendulum_y" type="revolute">
+		<parent link="temp"/>
+		<child link="front_right_leg_object"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+		<!-- Position the joint at the front-right-bottom corner of the torso -->
+		<!-- Torso box is 0.14x0.14x0.14, so half-dimensions are 0.07 -->
+		<origin rpy="0.00000 0.00000 0.00000" xyz="0.07000 -0.07000 -0.07000"/>
+		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Y-axis for outward rotation -->
+		<limit lower="-3.14" upper="3.14" effort="1000.0" velocity="1.0"/>
+	</joint>
+
+</robot>

@@ -53,24 +53,6 @@ public:
     }
 
     std::tuple<torch::Tensor, float, bool, bool> step(const torch::Tensor& actions, int frame_index) override {
-        static b3Clock clock;
-        static double lastTime = clock.getTimeInSeconds();
-        static int fpsTextId = -1;
-        double currentTime = clock.getTimeInSeconds();
-        static int frameCounterForFPS = 0;
-        frameCounterForFPS++;
-        double elapsed = currentTime - lastTime;
-        if (elapsed >= 5.0) {
-            double fps = frameCounterForFPS / elapsed;
-            std::string text = "FPS: " + std::to_string(fps); // Fixed string concatenation
-            if (fpsTextId >= 0)
-                sim->removeUserDebugItem(fpsTextId);
-            double pos[3] = { 0, 0, 2 };
-            b3RobotSimulatorAddUserDebugTextArgs args;
-            fpsTextId = sim->addUserDebugText(text.c_str(), pos, args);
-            frameCounterForFPS = 0;
-            lastTime = currentTime;
-        }
 
         // Get animation for this frame
         int num_joints = sim->getNumJoints(agent_id);
@@ -125,6 +107,8 @@ public:
         //float reward = dist - 1.5f;
         float reward = (torso_pos[2] - target_pos_check[2]);
         bool done = false;// dist > 30;
+
+        GetFps();
 
         return { get_observation(), reward, done, false };
 

@@ -152,7 +152,6 @@ void PPO::_log_train() {
 		float avg_actor_loss = 0.0;
 		if (actor_loss.numel() > 0) {
 			if (actor_loss.dim() == 0) {
-				// scalar tensor
 				avg_actor_loss = actor_loss.item<float>();
 			}
 			else {
@@ -164,16 +163,33 @@ void PPO::_log_train() {
 			}
 		}
 
-		stringstream avg_ep_lens_ss, avg_ep_rews_ss, avg_actor_loss_ss;
+		auto critic_loss = std::get<torch::Tensor>(logger["critic_loss"]);
+		float avg_critic_loss = 0.0;
+		if (critic_loss.numel() > 0) {
+			if (critic_loss.dim() == 0) {
+				avg_critic_loss = critic_loss.item<float>();
+			}
+			else {
+				float sum_loss = 0.0;
+				for (int i = 0; i < critic_loss.size(0); ++i) {
+					sum_loss += critic_loss[i].item<float>();
+				}
+				avg_critic_loss = sum_loss / critic_loss.size(0);
+			}
+		}
+
+		stringstream avg_ep_lens_ss, avg_ep_rews_ss, avg_actor_loss_ss, avg_critic_loss_ss;
 		avg_ep_lens_ss << fixed << setprecision(2) << avg_ep_lens;
 		avg_ep_rews_ss << fixed << setprecision(2) << avg_ep_rews;
 		avg_actor_loss_ss << fixed << setprecision(5) << avg_actor_loss;
+		avg_critic_loss_ss << fixed << setprecision(5) << avg_critic_loss;
 
 		cout << endl;
 		cout << "-------------------- Iteration #" << i_so_far << " --------------------" << endl;
 		cout << "Average Episodic Length: " << avg_ep_lens_ss.str() << endl;
 		cout << "Average Episodic Return: " << avg_ep_rews_ss.str() << endl;
-		cout << "Average Loss: " << avg_actor_loss_ss.str() << endl;
+		cout << "Average Actor Loss: " << avg_actor_loss_ss.str() << endl;
+		cout << "Average Critic Loss: " << avg_critic_loss_ss.str() << endl;
 		cout << "Timesteps So Far: " << t_so_far << endl;
 		cout << "Iteration took: " << delta_t << " secs" << endl;
 		cout << "------------------------------------------------------" << endl;
@@ -182,12 +198,11 @@ void PPO::_log_train() {
 		logger["batch_lengths"] = vector<int>{};
 		logger["batch_rewards"] = vector<vector<float>>{};
 		logger["actor_loss"] = torch::Tensor();
+		logger["critic_loss"] = torch::Tensor();
 
-		// Pause if return is greater than -5
 		if (avg_ep_rews > -5.0f) {
 			std::cout << "PAUSED: Average episodic return is " << avg_ep_rews << " (greater than -5)" << std::endl;
 			std::cout << "Press Enter to continue..." << std::endl;
-			//std::cin.get();
 		}
 
 		std::vector<float> y1 = { 10.0f, 12.5f, 15.0f };
@@ -322,6 +337,7 @@ void PPO::learn(int total_timesteps) {
 				critic_optim->step();
 
 				logger["actor_loss"] = actor_loss;
+				logger["critic_loss"] = critic_loss;
 			}
 
 			_log_train();

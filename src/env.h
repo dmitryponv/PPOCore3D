@@ -41,6 +41,7 @@ public:
     virtual Space observation_space() const = 0;
     virtual Space action_space() const = 0;
     virtual void EnableManipulator() = 0;
+    virtual torch::Tensor get_observation() = 0;
 };
 
 class Env3D : public Env {
@@ -75,6 +76,28 @@ public:
 
     Manipulator* manipulator;
     std::vector<double> joint_positions;
+
+    void GetFps()
+    {
+        static b3Clock clock;
+        static double lastTime = clock.getTimeInSeconds();
+        static int fpsTextId = -1;
+        double currentTime = clock.getTimeInSeconds();
+        static int frameCounterForFPS = 0;
+        frameCounterForFPS++;
+        double elapsed = currentTime - lastTime;
+        if (elapsed >= 5.0) {
+            double fps = frameCounterForFPS / elapsed;
+            std::string text = "FPS: " + std::to_string(fps); // Fixed string concatenation
+            if (fpsTextId >= 0)
+                sim->removeUserDebugItem(fpsTextId);
+            double pos[3] = { 0, 0, 2 };
+            b3RobotSimulatorAddUserDebugTextArgs args;
+            fpsTextId = sim->addUserDebugText(text.c_str(), pos, args);
+            frameCounterForFPS = 0;
+            lastTime = currentTime;
+        }
+    }
 
     void EnableManipulator() override
     {

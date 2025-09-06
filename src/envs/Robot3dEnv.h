@@ -74,10 +74,6 @@ public:
     }
 
     std::tuple<torch::Tensor, float, bool, bool> step(const torch::Tensor& actions, int frame_index) override {
-        static b3Clock clock;
-        static double lastTime = clock.getTimeInSeconds();
-        static int frameCount = 0;
-        static int fpsTextId = -1;
 
         // Optionally: get animation for this frame
         auto anim = GetJointAnim(frame_index);
@@ -101,22 +97,6 @@ public:
 
         sim->stepSimulation(); // Step simulation once for all robots
 
-        frameCount++;
-        double currentTime = clock.getTimeInSeconds();
-        double elapsed = currentTime - lastTime;
-
-        if (elapsed >= 1.0) {
-            double fps = frameCount / elapsed;
-            std::string text = "FPS: " + std::to_string(fps);
-            if (fpsTextId >= 0)
-                sim->removeUserDebugItem(fpsTextId);
-            double pos[3] = { 0, 0, 2 };
-            b3RobotSimulatorAddUserDebugTextArgs args;
-            fpsTextId = sim->addUserDebugText(text.c_str(), pos, args);
-            lastTime = currentTime;
-            frameCount = 0;
-        }
-
         // Collect results for all robots after simulation step
         b3LinkState baseLinkState;
         sim->getLinkState(current_uid, 0, 1, 1, &baseLinkState);
@@ -126,6 +106,8 @@ public:
 
         float reward = z - 0.05f - 0.1f * std::sqrt(x * x + y * y);
         bool done = false; // Add specific done condition if needed, e.g., if z < 0.1
+
+        GetFps();
 
         return { get_observation(current_uid), reward, done, false };
     }

@@ -18,11 +18,14 @@
 
 #include "PPO.h"
 
-#include "envs/AgentTargetEnv.h"
+#include "envs/AgentTarget3dEnv.h"
 #include "envs/PendulumEnv.h"
-#include "envs/RobotEnv.h"
-#include "envs/HumanoidEnv.h"
-#include "envs/HumanstandEnv.h"
+#include "envs/Pendulum3dEnv.h"
+#include "envs/Robot3dEnv.h"
+#include "envs/Humanoid3dEnv.h"
+#include "envs/Humanstand3dEnv.h"
+#include "envs/BasketballEnv.h"
+#include "envs/Basketball3dEnv.h"
 
 
 void train(
@@ -117,7 +120,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        PendulumEnv env(device);
+        BasketballEnv env(device);
         
         // Mode selection - 0: train, 1: eval, 2: animate
         int mode = 0; // 0=train, 1=eval, 2=animate
