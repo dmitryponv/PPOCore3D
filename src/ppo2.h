@@ -6,10 +6,8 @@
 #include <unordered_map>
 #include <string>
 
-// Forward declarations of external classes
-class Env;
-class GraphWindowManager;
-class TestEnvironment;
+#include "env.h"
+#include "Grapher.h"
 
 // Vector of tensors.
 using VT = std::vector<torch::Tensor>;
@@ -31,14 +29,14 @@ struct ActorCriticImpl : public torch::nn::Module
     // Critic.
     torch::nn::Linear c_lin1_, c_lin2_, c_lin3_, c_val_;
 
-    ActorCriticImpl(int64_t n_in, int64_t n_out, double std)
+    ActorCriticImpl(int n_in, int n_out, double std)
         : // Actor.
         a_lin1_(torch::nn::Linear(n_in, 16)),
         a_lin2_(torch::nn::Linear(16, 32)),
         a_lin3_(torch::nn::Linear(32, n_out)),
         mu_(torch::full(n_out, 0.)),
         log_std_(torch::full(n_out, std)),
-        
+
         // Critic
         c_lin1_(torch::nn::Linear(n_in, 16)),
         c_lin2_(torch::nn::Linear(16, 32)),
@@ -88,9 +86,9 @@ struct ActorCriticImpl : public torch::nn::Module
     {
         torch::NoGradGuard no_grad;
 
-        for (auto& p: this->parameters())
+        for (auto& p : this->parameters())
         {
-            p.normal_(mu,std);
+            p.normal_(mu, std);
         }
     }
 
@@ -116,40 +114,42 @@ class PPO2
 public:
     PPO2(Env& env, const std::unordered_map<std::string, float>& hyperparameters, torch::Device& device, GraphWindowManager& graph_manager, std::string actor_model, std::string critic_model)
         : mEnv(env),
-          mHyperparameters(hyperparameters),
-          mDevice(device),
-          mGraphManager(graph_manager),
-          mActorModel(actor_model),
-          mCriticModel(critic_model),
-          mAc(nullptr),
-          mOpt(nullptr)
+        mHyperparameters(hyperparameters),
+        mDevice(device),
+        mGraphManager(graph_manager),
+        mActorModel(actor_model),
+        mCriticModel(critic_model),
+        mAc(nullptr),
+        mOpt(nullptr)
     {
         // Placeholder for initialization logic using constructor parameters.
         // The actual implementation would go here.
+        n_observations = mEnv.observation_space();
+        n_actions = mEnv.action_space();
         std::cout << "PPO2 constructed with provided parameters." << std::endl;
     }
 
-    // Main training function, refactored from the original main.
-    void train(TestEnvironment& env)
+    // Main learning function.
+    void learn(int total_timesteps)
     {
+        // Call reset at the beginning to get the initial state.
+        mEnv.reset();
+
         // Model.
-        uint n_in = 4;
-        uint n_out = 2;
         double std = 2e-2;
 
-        mAc = ActorCritic(n_in, n_out, std);
+        mAc = ActorCritic(n_observations, n_actions, std);
         mAc->to(torch::kF64);
         mAc->normal(0., std);
         mOpt = std::make_unique<torch::optim::Adam>(mAc->parameters(), 1e-3);
 
         // Training loop parameters
-        uint n_iter = 10000;
-        uint n_steps = 2048;
-        uint n_epochs = 15;
-        uint mini_batch_size = 512;
-        uint ppo_epochs = 4;
+        int n_steps = 2048;
+        int n_epochs = 15;
+        int mini_batch_size = 512;
+        int ppo_epochs = 4;
         double beta = 1e-3;
-        
+
         VT states;
         VT actions;
         VT rewards;
@@ -158,165 +158,68 @@ public:
         VT returns;
         VT values;
 
-        // Output.
-        std::ofstream out;
-        out.open("../data/data.csv");
-
-        // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, WON, LOST, RESETTING)
-        // Note: RESETTING is a placeholder for a constant defined elsewhere.
-        out << 1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << "RESETTING" << "\n";
-
         // Counter.
-        uint c = 0;
+        int c = 0;
 
-        // Average reward.
-        double best_avg_reward = 0.;
-        double avg_reward = 0.;
-
-        for (uint e=1; e<=n_epochs; e++)
+        for (int i = 0; i < total_timesteps; i++)
         {
-            printf("epoch %u/%u\n", e, n_epochs);
+            // State of env.
+            states.push_back(mEnv.get_observation().to(torch::kF64));
 
-            for (uint i=0; i<n_iter; i++)
-            {
-                // State of env.
-                states.push_back(env.State());
-
-                // Play.
-                auto av = mAc->forward(states[c]);
-                actions.push_back(std::get<0>(av));
-                values.push_back(std::get<1>(av));
-                log_probs.push_back(mAc->log_prob(actions[c]));
-
-                double x_act = actions[c][0][0].item<double>();
-                double y_act = actions[c][0][1].item<double>();
-                auto sd = env.Act(x_act, y_act);
-
-                // New state.
-                rewards.push_back(env.Reward(std::get<1>(sd)));
-                dones.push_back(std::get<2>(sd));
-
-                avg_reward += rewards[c][0][0].item<double>() / n_iter;
-
-                // episode, agent_x, agent_y, goal_x, goal_y, AGENT=(PLAYING, WON, LOST, RESETTING)
-                out << e << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << "PLAYING" << "\n";
-
-                if (dones[c][0][0].item<double>() == 1.)
-                {
-                    // Set new goal.
-                    std::uniform_int_distribution<> dist(-5, 5);
-                    double x_new = double(dist(re));
-                    double y_new = double(dist(re));
-                    env.SetGoal(x_new, y_new);
-
-                    // Reset the position of the agent.
-                    env.Reset();
-
-                    // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, WON, LOST, RESETTING)
-                    out << e << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << "RESETTING" << "\n";
-                }
-
-                c++;
-
-                // Update.
-                if (c % n_steps == 0)
-                {
-                    printf("Updating the network.\n");
-                    values.push_back(std::get<1>(mAc->forward(states[c-1])));
-
-                    returns = returns_gae(rewards, dones, values, .99, .95);
-
-                    torch::Tensor t_log_probs = torch::cat(log_probs).detach();
-                    torch::Tensor t_returns = torch::cat(returns).detach();
-                    torch::Tensor t_values = torch::cat(values).detach();
-                    torch::Tensor t_states = torch::cat(states);
-                    torch::Tensor t_actions = torch::cat(actions);
-                    torch::Tensor t_advantages = t_returns - t_values.slice(0, 0, n_steps);
-
-                    update_network(t_states, t_actions, t_log_probs, t_returns, t_advantages, n_steps, ppo_epochs, mini_batch_size, beta);
-                    
-                    c = 0;
-                    states.clear();
-                    actions.clear();
-                    rewards.clear();
-                    dones.clear();
-                    log_probs.clear();
-                    returns.clear();
-                    values.clear();
-                }
-            }
-
-            // Save the best net.
-            if (avg_reward > best_avg_reward) {
-                best_avg_reward = avg_reward;
-                printf("Best average reward: %f\n", best_avg_reward);
-                torch::save(mAc, "best_model.pt");
-            }
-            avg_reward = 0.;
-
-            // Reset at the end of an epoch.
-            std::uniform_int_distribution<> dist(-5, 5);
-            double x_new = double(dist(re));
-            double y_new = double(dist(re));
-            env.SetGoal(x_new, y_new);
-
-            // Reset the position of the agent.
-            env.Reset();
-
-            // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, WON, LOST, RESETTING)
-            out << e << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << "RESETTING" << "\n";
-        }
-        out.close();
-    }
-
-    // Main test function, refactored from the original main.
-    void test(TestEnvironment& env)
-    {
-        // Test loop.
-        uint n_iter = 10000;
-        
-        // Output.
-        std::ofstream out;
-        out.open("../data/data_test.csv");
-
-        // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, WON, LOST, RESETTING)
-        out << 1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << "RESETTING" << "\n";
-
-        mAc->eval();
-        torch::load(mAc, "best_model.pt");
-
-        for (uint i=0; i<n_iter; i++)
-        {
             // Play.
-            auto av = mAc->forward(env.State());
-            auto action = std::get<0>(av);
+            auto av = mAc->forward(states[c]);
+            actions.push_back(std::get<0>(av));
+            values.push_back(std::get<1>(av));
+            log_probs.push_back(mAc->log_prob(actions[c]));
 
-            double x_act = action[0][0].item<double>();
-            double y_act = action[0][1].item<double>();
-            auto sd = env.Act(x_act, y_act);
+            // Step the environment with the action.
+            torch::Tensor next_obs;
+            float reward_val;
+            bool terminated;
+            bool truncated;
+            std::tie(next_obs, reward_val, terminated, truncated) = mEnv.step(actions[c], i);
 
-            // Check for done state.
-            auto done = std::get<2>(sd);
+            // New state.
+            rewards.push_back(torch::tensor({ reward_val }).to(torch::kF64));
+            dones.push_back(torch::tensor({ (int)(terminated || truncated) }).to(torch::kF64));
 
-            // episode, agent_x, agent_y, goal_x, goal_y, AGENT=(PLAYING, WON, LOST, RESETTING)
-            out << 1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << "PLAYING" << "\n";
+            c++;
 
-            if (done[0][0].item<double>() == 1.)
+            // Check if the episode is done
+            if (terminated || truncated) {
+                mEnv.reset();
+            }
+
+            // Update.
+            if (c % n_steps == 0)
             {
-                // Set new goal.
-                std::uniform_int_distribution<> dist(-5, 5);
-                double x_new = double(dist(re));
-                double y_new = double(dist(re));
-                env.SetGoal(x_new, y_new);
+                values.push_back(std::get<1>(mAc->forward(states[c - 1])));
 
-                // Reset the position of the agent.
-                env.Reset();
+                returns = returns_gae(rewards, dones, values, .99, .95);
 
-                // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, WON, LOST, RESETTING)
-                out << 1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << "RESETTING" << "\n";
+                torch::Tensor t_log_probs = torch::cat(log_probs).detach();
+                torch::Tensor t_returns = torch::cat(returns).detach();
+                torch::Tensor t_values = torch::cat(values).detach();
+                torch::Tensor t_states = torch::cat(states);
+                torch::Tensor t_actions = torch::cat(actions);
+                torch::Tensor t_advantages = t_returns - t_values.slice(0, 0, n_steps);
+
+                update_network(t_states, t_actions, t_log_probs, t_returns, t_advantages, n_steps, ppo_epochs, mini_batch_size, beta);
+
+                double avg_reward = average(rewards);
+                printf("Ep Finished, Reward: %lf.\n", avg_reward);
+                mGraphManager.Graph("Rewards", avg_reward);
+
+                c = 0;
+                states.clear();
+                actions.clear();
+                rewards.clear();
+                dones.clear();
+                log_probs.clear();
+                returns.clear();
+                values.clear();
             }
         }
-        out.close();
     }
 
 private:
@@ -328,18 +231,20 @@ private:
     std::string mCriticModel;
     ActorCritic mAc;
     std::unique_ptr<torch::optim::Adam> mOpt;
+    int n_actions = 0;
+    int n_observations = 0;
 
     // Generalized advantage estimate, https://arxiv.org/abs/1506.02438
     auto returns_gae(VT& rewards, VT& dones, VT& vals, double gamma, double lambda) -> VT
     {
-        torch::Tensor gae = torch::zeros({1}, torch::kFloat64);
-        VT returns(rewards.size(), torch::zeros({1}, torch::kFloat64));
+        torch::Tensor gae = torch::zeros({ 1 }, torch::kFloat64);
+        VT returns(rewards.size(), torch::zeros({ 1 }, torch::kFloat64));
 
-        for (uint i=rewards.size(); i-- > 0;)
+        for (int i = rewards.size(); i-- > 0;)
         {
             // Advantage.
-            auto delta = rewards[i] + gamma * vals[i+1] * (1-dones[i]) - vals[i];
-            gae = delta + gamma * lambda * (1-dones[i]) * gae;
+            auto delta = rewards[i] + gamma * vals[i + 1] * (1 - dones[i]) - vals[i];
+            gae = delta + gamma * lambda * (1 - dones[i]) * gae;
             returns[i] = gae + vals[i];
         }
         return returns;
@@ -347,23 +252,23 @@ private:
 
     // Update the network.
     void update_network(torch::Tensor& states,
-                        torch::Tensor& actions,
-                        torch::Tensor& log_probs,
-                        torch::Tensor& returns,
-                        torch::Tensor& advantages,
-                        uint steps, uint epochs, uint mini_batch_size, double beta, double clip_param = .2)
+        torch::Tensor& actions,
+        torch::Tensor& log_probs,
+        torch::Tensor& returns,
+        torch::Tensor& advantages,
+        int steps, int epochs, int mini_batch_size, double beta, double clip_param = .2)
     {
-        for (uint e=0; e<epochs; e++)
+        for (int e = 0; e < epochs; e++)
         {
             // Generate random indices.
-            torch::Tensor cpy_sta = torch::zeros({mini_batch_size, states.size(1)}, states.options());
-            torch::Tensor cpy_act = torch::zeros({mini_batch_size, actions.size(1)}, actions.options());
-            torch::Tensor cpy_log = torch::zeros({mini_batch_size, log_probs.size(1)}, log_probs.options());
-            torch::Tensor cpy_ret = torch::zeros({mini_batch_size, returns.size(1)}, returns.options());
-            torch::Tensor cpy_adv = torch::zeros({mini_batch_size, advantages.size(1)}, advantages.options());
+            torch::Tensor cpy_sta = torch::zeros({ mini_batch_size, n_observations }, states.options());
+            torch::Tensor cpy_act = torch::zeros({ mini_batch_size, n_actions }, actions.options());
+            torch::Tensor cpy_log = torch::zeros({ mini_batch_size, n_actions }, log_probs.options());
+            torch::Tensor cpy_ret = torch::zeros({ mini_batch_size, 1 }, returns.options());
+            torch::Tensor cpy_adv = torch::zeros({ mini_batch_size, 1 }, advantages.options());
 
-            for (uint b=0; b<mini_batch_size; b++) {
-                uint idx = std::uniform_int_distribution<uint>(0, steps-1)(re);
+            for (int b = 0; b < mini_batch_size; b++) {
+                int idx = std::uniform_int_distribution<int>(0, steps - 1)(re);
                 cpy_sta[b] = states[idx];
                 cpy_act[b] = actions[idx];
                 cpy_log[b] = log_probs[idx];
@@ -390,5 +295,19 @@ private:
             loss.backward();
             mOpt->step();
         }
+    }
+
+    double average(const std::vector<torch::Tensor>& tensors) {
+        if (tensors.empty()) {
+            return 0.0f;
+        }
+
+        double sum = 0.0f;
+        for (const auto& tensor : tensors) {
+            // We use .item<float>() to extract the single float value from the tensor.
+            sum += tensor.item<double>();
+        }
+
+        return sum / tensors.size();
     }
 };
