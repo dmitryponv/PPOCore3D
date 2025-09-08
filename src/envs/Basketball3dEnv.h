@@ -83,15 +83,15 @@ public:
 
     // Defines the observation space.
     // We observe the base link's world position, orientation, linear velocity, and angular velocity.
-    Space observation_space() const override {
+    int observation_space() const override {
         // 3 pos + 4 ori (quaternion) + 3 linear velocity + 3 angular velocity = 13
-        return Space{ {6} };
+        return 6;
     }
 
     // Defines the action space.
     // We have 3 actions for force control (X, Y, and Z).
-    Space action_space() const override {
-        return Space{ {3} };
+    int action_space() const override {
+        return 3;
     }
 
     // Gathers the current state of the environment into a tensor.

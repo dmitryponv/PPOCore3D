@@ -17,6 +17,7 @@
 #include <unordered_map>
 
 #include "PPO.h"
+#include "DQN.h"
 
 #include "envs/AgentTarget3dEnv.h"
 #include "envs/PendulumEnv.h"
@@ -38,7 +39,7 @@ void train(
 ) {
     std::cout << "Training" << std::endl;
 
-    PPO model(env, hyperparameters, device, graph_manager, actor_model, critic_model);  // Construct PPO with environment and hyperparameters
+    PPO model(env, hyperparameters, device, graph_manager, actor_model, critic_model);  // Construct policy with environment and hyperparameters
 
     // Train PPO model for a large number of timesteps
     model.learn(2000000000);
@@ -49,7 +50,7 @@ void eval(Env& env, torch::Device& device, const std::string& actor_model, float
 
     PPO_Eval model(env, device, actor_model);
 
-    model.eval_policy(false, fixedTimeStepS);
+    model.eval_policy(true, fixedTimeStepS);
 }
 
 void animate(Env& env, int anim_skip_steps = 1) {
@@ -83,8 +84,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
         {"clip", 0.2},
-        {"render", 0},
-        {"render_every_i", 10}
     };
 
 
@@ -120,10 +119,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        PendulumEnv env(device);
+        Basketball2dEnv env(device);
         
         // Mode selection - 0: train, 1: eval, 2: animate
-        int mode = 0; // 0=train, 1=eval, 2=animate
+        int mode = 1; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode
         
         switch (mode) {

@@ -1,4 +1,6 @@
-﻿#include <torch/torch.h>
+﻿#pragma once
+
+#include <torch/torch.h>
 #include <ATen/Functions.h>
 #include <iostream>
 #include <cuda_runtime.h>

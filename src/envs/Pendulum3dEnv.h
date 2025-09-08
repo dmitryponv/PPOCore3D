@@ -111,15 +111,15 @@ public:
     // Defines the observation space.
     // We observe the link's world position, orientation, linear velocity, and angular velocity,
     // as well as the states of both joints.
-    Space observation_space() const override {
+    int observation_space() const override {
         // 3 pos + 4 ori (quaternion) + 3 linear velocity + 3 angular velocity + 2 joint angles + 2 joint velocities = 17
-        return Space{ {17} };
+        return 17;
     }
 
     // Defines the action space.
     // We have 2 actions for torque control (X and Y).
-    Space action_space() const override {
-        return Space{ {2} };
+    int action_space() const override {
+        return 2;
     }
 
     // Gathers the current state of the environment into a tensor.

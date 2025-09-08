@@ -41,19 +41,21 @@ public:
         sim->setRealTimeSimulation(false);
     }
 
-    Space observation_space() const override {
+    int observation_space() const override {
         // Observations for all joints (positions + velocities) + base pos/vel
         // Assuming all minitaurs have the same number of valid torque joints for the action space.
         // For observation, we take the first minitaur's info if it exists.
-        if (agent_id == -1) return Space{ {0} };
+        if (agent_id == -1) 
+            return 0;
         int num_joints_first_robot = sim->getNumJoints(agent_id);
-        return Space{ {6 + num_joints_first_robot * 6} };
+        return 6 + num_joints_first_robot * 6;
     }
 
-    Space action_space() const override {
+    int action_space() const override {
         // Actions only for joints with non-zero axis
-        if (validTorqueJoints.empty()) return Space{ {0} }; // Use the single validTorqueJoints
-        return Space{ {static_cast<int>(validTorqueJoints.size())} }; // Use the single validTorqueJoints
+        if (validTorqueJoints.empty())
+            return 0; // Use the single validTorqueJoints
+        return static_cast<int>(validTorqueJoints.size()); // Use the single validTorqueJoints
     }
 
     torch::Tensor reset() override {

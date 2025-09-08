@@ -32,14 +32,14 @@ public:
         sim->setRealTimeSimulation(false);
     }
 
-    Space observation_space() const override {
+    int observation_space() const override {
         int num_joints = sim->getNumJoints(agent_id);
         int obs_per_joint = 3 + 4 + 3 + 3; // pos + quat + linear vel + angular vel
-        return Space{ {num_joints * obs_per_joint} };
+        return num_joints * obs_per_joint;
     }
 
-    Space action_space() const override {
-        return Space{ {sim->getNumJoints(agent_id)} };
+    int action_space() const override {
+        return sim->getNumJoints(agent_id);
     }
 
     torch::Tensor reset() override {

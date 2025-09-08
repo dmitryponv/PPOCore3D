@@ -15,9 +15,6 @@ public:
         m = 1.0f;
         l = 1.0f;
 
-        obs_space.shape = { 3 };
-        act_space.shape = { 1 };
-
         std::random_device rd;
         rng = std::mt19937(rd());
         dist = std::uniform_real_distribution<float>(-3.14f, 3.14f);
@@ -62,12 +59,12 @@ public:
         // Empty implementation
     }
 
-    Space observation_space() const override {
-        return obs_space;
+    int observation_space() const override {
+        return 3;
     }
 
-    Space action_space() const override {
-        return act_space;
+    int action_space() const override {
+        return 1;
     }
 
     void EnableManipulator() override
@@ -80,7 +77,6 @@ private:
     float max_speed, max_torque;
     std::vector<float> states; // State for multiple pendulums
     float last_us = 0.0f; // Last applied torque for multiple pendulums
-    Space obs_space, act_space;
 
     std::mt19937 rng;
     std::uniform_real_distribution<float> dist;

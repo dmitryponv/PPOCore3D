@@ -36,8 +36,8 @@ torch::Tensor FeedForwardNNImpl::forward(torch::Tensor obs) {
 PPO::PPO(Env& env, const std::unordered_map<std::string, float>& hyperparameters, torch::Device& device, GraphWindowManager& graph_manager, string actor_model, string critic_model)
 	: env(env), device(device), graph_manager(graph_manager){
 	try {
-		obs_dim = env.observation_space().shape[0];
-		act_dim = env.action_space().shape[0];
+		obs_dim = env.observation_space();
+		act_dim = env.action_space();
 
 		actor = FeedForwardNN(obs_dim, act_dim, device);
 		critic = FeedForwardNN(obs_dim, 1, device);
@@ -95,8 +95,6 @@ void PPO::_init_hyperparameters(const unordered_map<string, float>& hyperparamet
 			else if (param == "lr") lr = val;
 			else if (param == "gamma") gamma = val;
 			else if (param == "clip") clip = val;
-			else if (param == "render") render = (val != 0.0);
-			else if (param == "render_every_i") render_every_i = static_cast<int>(val);
 			else if (param == "save_freq") save_freq = static_cast<int>(val);
 			else if (param == "seed") seed = static_cast<int>(val);
 		}
@@ -328,6 +326,10 @@ void PPO::learn(int total_timesteps) {
 				torch::Tensor critic_loss = torch::mse_loss(V, batch_rtgs.unsqueeze(1));
 				//torch::Tensor critic_loss = torch::mse_loss(V.squeeze(1), batch_rtgs);
 
+				//std::cout << "actor_loss:\n" << actor_loss << std::endl;
+				//std::cout << "critic_loss:\n" << critic_loss << std::endl;
+
+
 				actor_optim->zero_grad();
 				actor_loss.backward({}, true);
 				actor_optim->step();
@@ -393,11 +395,11 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<in
 				if (max_timesteps_per_episode == ep_t+1 || done)
 				{
 					batch_lengths_vec.push_back(ep_rews.size());
-			batch_rewards.push_back(ep_rews);
+					batch_rewards.push_back(ep_rews);
 					observations = env.reset();
 					ep_rews.clear();
 					frame_index = 0; // Reset frame index for new episode
-		}
+				}
 				frame_index++; // Increment frame index each step
 			}
 		}
@@ -431,8 +433,8 @@ PPO_Eval::PPO_Eval(Env& env, torch::Device& device, string actor_model)
 			exit(0);
 		}
 
-		obs_dim = env.observation_space().shape[0];
-		act_dim = env.action_space().shape[0];
+		obs_dim = env.observation_space();
+		act_dim = env.action_space();
 
 		actor = FeedForwardNN(obs_dim, act_dim, device);
 		torch::load(actor, actor_model);

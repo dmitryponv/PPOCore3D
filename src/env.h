@@ -30,16 +30,12 @@ public:
 
     virtual ~Env() = default;
 
-    struct Space {
-        std::vector<int> shape;
-    };
-
     virtual torch::Tensor reset() = 0;
     virtual std::tuple<torch::Tensor, float, bool, bool> step(const torch::Tensor& actions, int frame_index) = 0;
     virtual void render() = 0;
     virtual void animate() = 0;
-    virtual Space observation_space() const = 0;
-    virtual Space action_space() const = 0;
+    virtual int observation_space() const = 0;
+    virtual int action_space() const = 0;
     virtual void EnableManipulator() = 0;
     virtual torch::Tensor get_observation() = 0;
 };

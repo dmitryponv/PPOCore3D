@@ -41,12 +41,12 @@ public:
         target_id = sim->loadURDF("cube.urdf", obj_args);
     }
 
-    Space observation_space() const override {
-        return Space{ {4} };
+    int observation_space() const override {
+        return 4;
     }
 
-    Space action_space() const override {
-        return Space{ {2} };
+    int action_space() const override {
+        return 2;
     }
 
     torch::Tensor reset() override {
@@ -120,7 +120,7 @@ public:
     }
 
 private:
-    torch::Tensor get_observation() const {
+    torch::Tensor get_observation() override {
         btVector3 agent_base_pos, target_base_pos;
         btQuaternion agent_q, target_q;
         

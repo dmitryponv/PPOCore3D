@@ -30,13 +30,13 @@ public:
         sim->setRealTimeSimulation(false);
     }
 
-    Space observation_space() const override {
+    int observation_space() const override {
         int num_joints = sim->getNumJoints(agent_id);
-        return Space{ {13 + num_joints * 21} };
+        return 13 + num_joints * 21;
     }
 
-    Space action_space() const override {
-        return Space{ {sim->getNumJoints(agent_id)} };
+    int action_space() const override {
+        return sim->getNumJoints(agent_id);
     }
 
     torch::Tensor reset() override {
