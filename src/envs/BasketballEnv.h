@@ -256,9 +256,9 @@ public:
         float distance = std::sqrt(dist_x * dist_x + dist_y * dist_y + dist_z * dist_z);
 
         float force_magnitude_sq = force_x * force_x + force_y * force_y + force_z * force_z;
-        float reward = -distance - 0.001f * force_magnitude_sq;
+        float reward = -(distance - 1) - 0.001f * (force_x * force_x);
 
-        bool done = distance > 20.0f;
+        bool done = distance > 20.0f || (distance < 0.1f && std::abs(velocity[0]*velocity[1]*velocity[2]) < 0.01f);
 
         return { get_observation(), reward, done, false };
     }
