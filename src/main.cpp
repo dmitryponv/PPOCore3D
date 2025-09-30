@@ -79,8 +79,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     graph_manager.Init();
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
-        {"timesteps_per_batch", 1000},
-        {"max_timesteps_per_episode", 500},
+        {"timesteps_per_batch", 50000},
+        {"max_timesteps_per_episode", 25000},
         {"gamma", 0.9},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
@@ -120,7 +120,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        BasketballEnv env(device);
+        Humanstand3dEnv env(device);
         
         // Mode selection - 0: train, 1: eval, 2: animate
         int mode = 0; // 0=train, 1=eval, 2=animate
@@ -137,7 +137,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             case 1: // eval
             default:
                 {
-                    float fixedTimeStepS = 1. / 50.;
+                    float fixedTimeStepS = 1. / 5000.;
                     eval(env, device, "./models/ppo_actor.pt", fixedTimeStepS);
                 }
                 break;

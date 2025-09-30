@@ -1,12 +1,11 @@
 <?xml version="1.0" ?>
 <robot name="four_legged_creature">
 
-	<!-- Torso Link: The central body of the creature -->
 	<link name="torso_object">
 		<inertial>
 			<origin rpy="0.00000 -0.00000 0.00000" xyz="-0.01000 0.00000 -0.12000"/>
 			<mass value="8.90746"/>
-			<inertia ixx="0.21526" ixy="0.00001" ixz="0.00001" iyy="0.21526" iyz="0.00001" izz="0.21526"/>
+			<inertia ixx="0.21526" ixy="0.00001" ixz="0.00001" iyy="0.21526" iyz="0.21526" izz="0.21526"/>
 		</inertial>
 		<collision>
 			<origin rpy="-1.57080 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
@@ -16,7 +15,6 @@
 		</collision>
 	</link>
 
-	<!-- Head Link: Directly attached to the torso -->
 	<link name="head_object">
 		<inertial>
 			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 0.00000"/>
@@ -24,132 +22,201 @@
 			<inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
 		</inertial>
 		<collision>
-			<!-- Position the head on top of the torso. Torso height is 0.14, so top is at Z=0.07. Head radius is 0.10. -->
-			<!-- Placing origin at Z=0.17 puts the bottom of the sphere at Z=0.07 (top of torso) -->
 			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 0.17000"/>
 			<geometry>
 				<sphere radius="0.10"/>
 			</geometry>
 		</collision>
 	</link>
-
-	<!-- Leg Links (4 total): Each leg is a single segment -->
-	<!-- Front Right Leg -->
-	<link name="front_right_leg_object">
+ 
+  <link name="front_right_leg_upper_object">
 		<inertial>
-			<!-- Center of mass for a leg segment of length 0.34015 extending downwards from origin -->
-			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
-			<mass value="4.75175"/>
-			<inertia ixx="0.09212" ixy="0.00001" ixz="0.00001" iyy="0.09212" iyz="0.00001" izz="0.09212"/>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.170075 0.00000 0.00000"/>
+			<mass value="2.37588"/>
+			<inertia ixx="0.02303" ixy="0.00001" ixz="0.00001" iyy="0.02303" iyz="0.00001" izz="0.02303"/>
 		</inertial>
 		<collision>
-			<!-- Geometry for the single leg segment -->
-			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.170075 0.00000 0.00000"/>
 			<geometry>
-				<box size="0.08000 0.08000 0.34015"/> <!-- Slightly smaller box for leg segment -->
+				<box size="0.64015 0.08000 0.08000"/>
 			</geometry>
 		</collision>
 	</link>
-
-	<!-- Front Left Leg -->
-	<link name="front_left_leg_object">
+ 
+  <link name="front_right_leg_lower_object">
 		<inertial>
-			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
-			<mass value="4.75175"/>
-			<inertia ixx="0.09212" ixy="0.00001" ixz="0.00001" iyy="0.09212" iyz="0.00001" izz="0.09212"/>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
+			<mass value="2.37588"/>
+			<inertia ixx="0.02303" ixy="0.00001" ixz="0.00001" iyy="0.02303" iyz="0.00001" izz="0.02303"/>
 		</inertial>
 		<collision>
 			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
 			<geometry>
-				<box size="0.08000 0.08000 0.34015"/>
+				<box size="0.08000 0.08000 0.64015"/>
 			</geometry>
 		</collision>
 	</link>
 
-	<!-- Rear Right Leg -->
-	<link name="rear_right_leg_object">
+	<link name="front_left_leg_upper_object">
 		<inertial>
-			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
-			<mass value="4.75175"/>
-			<inertia ixx="0.09212" ixy="0.00001" ixz="0.00001" iyy="0.09212" iyz="0.00001" izz="0.09212"/>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.170075 0.00000"/>
+			<mass value="2.37588"/>
+			<inertia ixx="0.02303" ixy="0.00001" ixz="0.00001" iyy="0.02303" iyz="0.00001" izz="0.02303"/>
+		</inertial>
+		<collision>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.170075 0.00000"/>
+			<geometry>
+				<box size="0.08000 0.64015 0.08000"/>
+			</geometry>
+		</collision>
+	</link>
+
+  <link name="front_left_leg_lower_object">
+		<inertial>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
+			<mass value="2.37588"/>
+			<inertia ixx="0.02303" ixy="0.00001" ixz="0.00001" iyy="0.02303" iyz="0.00001" izz="0.02303"/>
 		</inertial>
 		<collision>
 			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
 			<geometry>
-				<box size="0.08000 0.08000 0.34015"/>
+				<box size="0.08000 0.08000 0.64015"/>
 			</geometry>
 		</collision>
 	</link>
-
-	<!-- Rear Left Leg -->
-	<link name="rear_left_leg_object">
+ 
+  <link name="rear_right_leg_upper_object">
 		<inertial>
-			<origin rpy="0.00000 -0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
-			<mass value="4.75175"/>
-			<inertia ixx="0.09212" ixy="0.00001" ixz="0.00001" iyy="0.09212" iyz="0.00001" izz="0.09212"/>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 -0.170075 0.00000"/>
+			<mass value="2.37588"/>
+			<inertia ixx="0.02303" ixy="0.00001" ixz="0.00001" iyy="0.02303" iyz="0.00001" izz="0.02303"/>
+		</inertial>
+		<collision>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 -0.170075 0.00000"/>
+			<geometry>
+				<box size="0.08000 0.64015 0.08000"/>
+			</geometry>
+		</collision>
+	</link>
+ 
+  <link name="rear_right_leg_lower_object">
+		<inertial>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
+			<mass value="2.37588"/>
+			<inertia ixx="0.02303" ixy="0.00001" ixz="0.00001" iyy="0.02303" iyz="0.00001" izz="0.02303"/>
 		</inertial>
 		<collision>
 			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
 			<geometry>
-				<box size="0.08000 0.08000 0.34015"/>
+				<box size="0.08000 0.08000 0.64015"/>
 			</geometry>
 		</collision>
 	</link>
-
-	<!-- Joints -->
-
-	<!-- Head Joint: Fixed to the torso (no neck) -->
+ 
+  <link name="rear_left_leg_upper_object">
+		<inertial>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="-0.170075 0.00000 0.00000"/>
+			<mass value="2.37588"/>
+			<inertia ixx="0.02303" ixy="0.00001" ixz="0.00001" iyy="0.02303" iyz="0.00001" izz="0.02303"/>
+		</inertial>
+		<collision>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="-0.170075 0.00000 0.00000"/>
+			<geometry>
+				<box size="0.64015 0.08000 0.08000"/>
+			</geometry>
+		</collision>
+	</link>
+ 
+  <link name="rear_left_leg_lower_object">
+		<inertial>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
+			<mass value="2.37588"/>
+			<inertia ixx="0.02303" ixy="0.00001" ixz="0.00001" iyy="0.02303" iyz="0.00001" izz="0.02303"/>
+		</inertial>
+		<collision>
+			<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 -0.170075"/>
+			<geometry>
+				<box size="0.08000 0.08000 0.64015"/>
+			</geometry>
+		</collision>
+	</link>
+ 
 	<joint name="torso_to_head_fixed" type="fixed">
 		<parent link="torso_object"/>
 		<child link="head_object"/>
-		<!-- Origin of the head relative to the torso. Torso collision origin is 0,0,0. -->
-		<!-- Torso box is 0.14m tall, so its top is at Z=0.07. -->
 		<origin rpy="0.00000 0.00000 0.00000" xyz="0.00000 0.00000 0.07000"/>
 	</joint>
 
-	<!-- Front Right Leg Joint: Revolute joint for outward rotation -->
-	<joint name="torso_to_front_right_leg" type="revolute">
+	<joint name="torso_to_front_right_leg_upper" type="revolute">
 		<parent link="torso_object"/>
-		<child link="front_right_leg_object"/>
+		<child link="front_right_leg_upper_object"/>
 		<dynamics damping="1.0" friction="0.0001"/>
-		<!-- Position the joint at the front-right-bottom corner of the torso -->
-		<!-- Torso box is 0.14x0.14x0.14, so half-dimensions are 0.07 -->
-		<origin rpy="0.00000 0.00000 0.00000" xyz="0.07000 -0.07000 -0.07000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Y-axis for outward rotation -->
-		<limit lower="-0.5" upper="0.5" effort="1000.0" velocity="1.0"/>
+		<origin rpy="0.00000 0.00000 -1" xyz="0.07000 -0.07000 -0.07000"/>
+		<axis xyz="0 0 1"/>
+		<limit lower="-0.6" upper="0.6" effort="1000.0" velocity="1.0"/>
+	</joint>
+ 
+  <joint name="front_right_leg_upper_to_lower" type="revolute">
+    <parent link="front_right_leg_upper_object"/>
+    <child link="front_right_leg_lower_object"/>
+    <dynamics damping="1.0" friction="0.0001"/>
+    <origin rpy="0 0 0" xyz="0.64015 0.00000 0.00000"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.5" upper="0.5" effort="1000.0" velocity="1.0"/>
+  </joint>
+
+	<joint name="torso_to_front_left_leg_upper" type="revolute">
+		<parent link="torso_object"/>
+		<child link="front_left_leg_upper_object"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+		<origin rpy="0.00000 0.00000 -1" xyz="0.07000 0.07000 -0.07000"/>
+		<axis xyz="0 0 1"/>
+		<limit lower="-0.6" upper="0.6" effort="1000.0" velocity="1.0"/>
+	</joint>
+ 
+  <joint name="front_left_leg_upper_to_lower" type="revolute">
+    <parent link="front_left_leg_upper_object"/>
+    <child link="front_left_leg_lower_object"/>
+    <dynamics damping="1.0" friction="0.0001"/>
+    <origin rpy="0 0 0" xyz="0.00000 0.64015 0.00000"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.5" upper="0.5" effort="1000.0" velocity="1.0"/>
+  </joint>
+
+	<joint name="torso_to_rear_right_leg_upper" type="revolute">
+		<parent link="torso_object"/>
+		<child link="rear_right_leg_upper_object"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+		<origin rpy="0.00000 0.00000 -1" xyz="-0.07000 -0.07000 -0.07000"/>
+		<axis xyz="0 0 1"/>
+		<limit lower="-0.6" upper="0.6" effort="1000.0" velocity="1.0"/>
+	</joint>
+ 
+  <joint name="rear_right_leg_upper_to_lower" type="revolute">
+    <parent link="rear_right_leg_upper_object"/>
+    <child link="rear_right_leg_lower_object"/>
+    <dynamics damping="1.0" friction="0.0001"/>
+    <origin rpy="0 0 0" xyz="0.00000 -0.64015 0.00000"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.5" upper="0.5" effort="1000.0" velocity="1.0"/>
+  </joint>
+
+	<joint name="torso_to_rear_left_leg_upper" type="revolute">
+		<parent link="torso_object"/>
+		<child link="rear_left_leg_upper_object"/>
+		<dynamics damping="1.0" friction="0.0001"/>
+		<origin rpy="0.00000 0.00000 5.5" xyz="-0.07000 0.07000 -0.07000"/>
+		<axis xyz="0 0 1"/>
+		<limit lower="-0.6" upper="0.6" effort="1000.0" velocity="1.0"/>
 	</joint>
 
-	<!-- Front Left Leg Joint: Revolute joint for outward rotation -->
-	<joint name="torso_to_front_left_leg" type="revolute">
-		<parent link="torso_object"/>
-		<child link="front_left_leg_object"/>
-		<dynamics damping="1.0" friction="0.0001"/>
-		<!-- Position the joint at the front-left-bottom corner of the torso -->
-		<origin rpy="0.00000 0.00000 0.00000" xyz="0.07000 0.07000 -0.07000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Y-axis for outward rotation -->
-		<limit lower="-0.5" upper="0.5" effort="1000.0" velocity="1.0"/>
-	</joint>
-
-	<!-- Rear Right Leg Joint: Revolute joint for outward rotation -->
-	<joint name="torso_to_rear_right_leg" type="revolute">
-		<parent link="torso_object"/>
-		<child link="rear_right_leg_object"/>
-		<dynamics damping="1.0" friction="0.0001"/>
-		<!-- Position the joint at the rear-right-bottom corner of the torso -->
-		<origin rpy="0.00000 0.00000 0.00000" xyz="-0.07000 -0.07000 -0.07000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Y-axis for outward rotation -->
-		<limit lower="-0.5" upper="0.5" effort="1000.0" velocity="1.0"/>
-	</joint>
-
-	<!-- Rear Left Leg Joint: Revolute joint for outward rotation -->
-	<joint name="torso_to_rear_left_leg" type="revolute">
-		<parent link="torso_object"/>
-		<child link="rear_left_leg_object"/>
-		<dynamics damping="1.0" friction="0.0001"/>
-		<!-- Position the joint at the rear-left-bottom corner of the torso -->
-		<origin rpy="0.00000 0.00000 0.00000" xyz="-0.07000 0.07000 -0.07000"/>
-		<axis xyz="0.00000 1.00000 0.00000"/> <!-- Y-axis for outward rotation -->
-		<limit lower="-0.5" upper="0.5" effort="1000.0" velocity="1.0"/>
-	</joint>
+  <joint name="rear_left_leg_upper_to_lower" type="revolute">
+    <parent link="rear_left_leg_upper_object"/>
+    <child link="rear_left_leg_lower_object"/>
+    <dynamics damping="1.0" friction="0.0001"/>
+    <origin rpy="0 0 0" xyz="-0.64015 0.00000 0.00000"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.5" upper="0.5" effort="1000.0" velocity="1.0"/>
+  </joint>
 
 </robot>

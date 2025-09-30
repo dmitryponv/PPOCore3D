@@ -3,9 +3,8 @@
 
 class Humanstand3dEnv : public Env3D {
 private:
-    // std::vector<std::vector<b3LinkState>> saved_link_states; // Remove unused
-    // std::vector<btVector3> saved_base_positions; // Remove unused
-    // std::vector<btQuaternion> saved_base_orientations; // Remove unused
+    btVector3 target_pos_check;
+    int sphere_id;
 
 public:
     Humanstand3dEnv(torch::Device& device)
@@ -14,7 +13,7 @@ public:
         start_ori.setEulerZYX(0, 0, 0); // 90 degrees around Y-axis
         start_pos = { 0,0,1.0 };
         btVector3 start_position(0.0f, 0.0f, 0.0f); // Use this->grid_space
-
+        target_pos_check = btVector3(0.0f, -10.0f, 1.0f);
         b3RobotSimulatorLoadUrdfFileArgs plane_args;
         plane_args.m_startPosition = { start_position.x(), start_position.y(), start_position.z() };
         plane_args.m_startOrientation = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -26,13 +25,25 @@ public:
         args.m_useMultiBody = true;
         args.m_flags = 0;
 
+        // --- Add static visual-only sphere at target_pos_check ---
+        b3RobotSimulatorCreateVisualShapeArgs vsArgs;
+        vsArgs.m_shapeType = GEOM_SPHERE;
+        vsArgs.m_radius = 0.5; // radius
+        int sphereVisual = sim->createVisualShape(GEOM_SPHERE, vsArgs);
+
+        b3RobotSimulatorCreateMultiBodyArgs mbArgs;
+        mbArgs.m_baseMass = 0.0; // static
+        mbArgs.m_baseVisualShapeIndex = sphereVisual;
+        mbArgs.m_basePosition = { target_pos_check.x(), target_pos_check.y(), target_pos_check.z() };
+        sphere_id = sim->createMultiBody(mbArgs);
+
         agent_id = sim->loadURDF("goat.urdf", args);
         sim->setRealTimeSimulation(false);
     }
 
     int observation_space() const override {
         int num_joints = sim->getNumJoints(agent_id);
-        return 13 + num_joints * 21;
+        return 13 + num_joints * 21 + 3;
     }
 
     int action_space() const override {
@@ -49,6 +60,16 @@ public:
         for (int k = 0; k < num_joints; ++k) {
             sim->resetJointState(agent_id, k, 0.0);
         }
+
+        std::uniform_real_distribution<float> distribution(-15.0f, 15.0f);
+        std::random_device rd;
+        std::mt19937 generator(rd());
+        float rand_x = distribution(generator);
+        float rand_y = distribution(generator);
+        btVector3 target_pos_check(rand_x, rand_y, 0.0f); 
+        btQuaternion default_ori(0.0f, 0.0f, 0.0f, 1.0f);
+        sim->resetBasePositionAndOrientation(sphere_id, target_pos_check, default_ori);
+
         return get_observation();
     }
 
@@ -67,7 +88,7 @@ public:
                 continue;
             }
 
-            float action_single = actions[j].item<float>()*10.0f;
+            float action_single = actions[j].item<float>()*5.0f;
 
             b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
             motorArgs.m_maxTorqueValue = 200.0f;
@@ -77,44 +98,45 @@ public:
             sim->setJointMotorControl(agent_id, j, motorArgs);
         }
 
-        sim->stepSimulation();
 
-        // Find the link index for "torso_object"
-        int torso_link_index = -1;
+        // Find the link index for "head_object"
+        int head_link_index = -1;
         for (int j = 0; j < num_joints; ++j) {
             b3JointInfo jointInfo;
             if (sim->getJointInfo(agent_id, j, &jointInfo)) {
                 if (std::string(jointInfo.m_linkName) == "head_object") {
-                    torso_link_index = j;
+                    head_link_index = j;
                     break;
                 }
             }
         }
 
-        btVector3 torso_pos(0, 0, 0);
-        if (torso_link_index != -1) {
-            b3LinkState torso_state;
-            sim->getLinkState(agent_id, torso_link_index, 1, 0, &torso_state);
-            torso_pos = btVector3(
-                torso_state.m_worldPosition[0],
-                torso_state.m_worldPosition[1],
-                torso_state.m_worldPosition[2]
+        btVector3 head_pos(0, 0, 0);
+        if (head_link_index != -1) {
+            b3LinkState head_state;
+            sim->getLinkState(agent_id, head_link_index, 1, 0, &head_state);
+            head_pos = btVector3(
+                head_state.m_worldPosition[0],
+                head_state.m_worldPosition[1],
+                head_state.m_worldPosition[2]
             );
         }
 
-        btVector3 target_pos_check(0.0f, 0.0f, 2.0f);
-        //float dist = (torso_pos - target_pos_check).length();
-        //float reward = dist - 1.5f;
-        float reward = (torso_pos[2] - target_pos_check[2]);
+        float dist = (head_pos - target_pos_check).length();
+        float reward = -dist + 1.5f;
+        //float reward = (head_pos[2] - target_pos_check[2] + 1);
         bool done = false;// dist > 30;
 
         GetFps();
 
-        return { get_observation(), reward, done, false };
+        at::Tensor obs = get_observation();
+
+        sim->stepSimulation();
+
+        return {obs , reward, done, false };
 
         //FOR TESTING ANIMATIONS
         //sim->resetBasePositionAndOrientation(id, start_pos, start_ori); sim->resetBaseVelocity(id, btVector3(0, 0, 0), btVector3(0, 0, 0));
-
     }
 
     torch::Tensor get_observation() {
@@ -130,6 +152,11 @@ public:
         // Pass references to btVector3 and btQuaternion objects
         sim->getBasePositionAndOrientation(agent_id, base_position, base_orientation);
         sim->getBaseVelocity(agent_id, base_linear_vel, base_angular_vel);
+
+        // Target position
+        obs.push_back(static_cast<float>(target_pos_check.getX()));
+        obs.push_back(static_cast<float>(target_pos_check.getY()));
+        obs.push_back(static_cast<float>(target_pos_check.getZ()));
 
         // Base position
         obs.push_back(static_cast<float>(base_position.getX()));
