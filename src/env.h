@@ -21,6 +21,8 @@
 #include <sys/stat.h>
 #include "Manipulator.h"
 // Include individual environment headers
+#include "raylib/raylib.h"
+
 
 // Abstract environment interface
 class Env {
@@ -38,6 +40,50 @@ public:
     virtual int action_space() const = 0;
     virtual void EnableManipulator() = 0;
     virtual torch::Tensor get_observation() = 0;
+};
+
+class Env2D : public Env {
+public:
+    int screenWidth = 800;
+    int screenHeight = 450;
+
+    Env2D(torch::Device& device) : Env(device) {
+        // Initialization
+        raylib::InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
+        raylib::SetTargetFPS(60);
+    }
+
+    ~Env2D() {
+        // De-Initialization
+        raylib::CloseWindow();
+    }
+
+    torch::Tensor reset() override {
+        return torch::zeros({ observation_space() }, mDevice);
+    }
+
+    std::tuple<torch::Tensor, float, bool, bool> step(const torch::Tensor& actions, int frame_index) override {
+        return { get_observation(), 0.0f, false, false };
+    }
+
+    void render() override {
+        // Main Draw Loop Logic
+        if (!raylib::WindowShouldClose()) {
+            raylib::BeginDrawing();
+            raylib::ClearBackground(raylib::BLACK); // Drawing black as requested
+            raylib::EndDrawing();
+        }
+    }
+
+    void animate() override {}
+
+    int observation_space() const override { return 4; }
+    int action_space() const override { return 2; }
+    void EnableManipulator() override {}
+
+    torch::Tensor get_observation() override {
+        return torch::zeros({ observation_space() }, mDevice);
+    }
 };
 
 class Env3D : public Env {

@@ -37,7 +37,7 @@ public:
         mbArgs.m_basePosition = { target_pos_check.x(), target_pos_check.y(), target_pos_check.z() };
         sphere_id = sim->createMultiBody(mbArgs);
 
-        agent_id = sim->loadURDF("goat.urdf", args);
+        agent_id = sim->loadURDF("T1_serial.urdf", args);
         sim->setRealTimeSimulation(false);
     }
 
@@ -66,7 +66,7 @@ public:
         std::mt19937 generator(rd());
         float rand_x = distribution(generator);
         float rand_y = distribution(generator);
-        btVector3 target_pos_check(rand_x, rand_y, 0.0f); 
+        target_pos_check = btVector3 (rand_x, rand_y, target_pos_check.z());
         btQuaternion default_ori(0.0f, 0.0f, 0.0f, 1.0f);
         sim->resetBasePositionAndOrientation(sphere_id, target_pos_check, default_ori);
 
@@ -88,7 +88,7 @@ public:
                 continue;
             }
 
-            float action_single = actions[j].item<float>()*5.0f;
+            float action_single = actions[j].item<float>()*15.0f;
 
             b3RobotSimulatorJointMotorArgs motorArgs(CONTROL_MODE_POSITION_VELOCITY_PD);
             motorArgs.m_maxTorqueValue = 200.0f;
@@ -104,7 +104,7 @@ public:
         for (int j = 0; j < num_joints; ++j) {
             b3JointInfo jointInfo;
             if (sim->getJointInfo(agent_id, j, &jointInfo)) {
-                if (std::string(jointInfo.m_linkName) == "head_object") {
+                if (std::string(jointInfo.m_linkName) == "H1") {
                     head_link_index = j;
                     break;
                 }
@@ -123,8 +123,8 @@ public:
         }
 
         float dist = (head_pos - target_pos_check).length();
-        float reward = -dist + 1.5f;
-        //float reward = (head_pos[2] - target_pos_check[2] + 1);
+        //float reward = -dist + 1.5f;
+        float reward = (head_pos[2] - target_pos_check[2] + 0.5);
         bool done = false;// dist > 30;
 
         GetFps();

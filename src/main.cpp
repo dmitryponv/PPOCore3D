@@ -18,6 +18,7 @@
 
 #include "PPO.h"
 #include "DQN.h"
+#include "NEAT.h"
 #include "PPO2.h"
 
 #include "envs/AgentTarget3dEnv.h"
@@ -28,6 +29,7 @@
 #include "envs/HumanStand3dEnv.h"
 #include "envs/BasketballEnv.h"
 #include "envs/Basketball3dEnv.h"
+#include "envs/LunarLanderEnv.h"
 
 
 void train(
@@ -79,8 +81,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     graph_manager.Init();
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
-        {"timesteps_per_batch", 50000},
-        {"max_timesteps_per_episode", 25000},
+        {"timesteps_per_batch", 5000},
+        {"max_timesteps_per_episode", 2500},
         {"gamma", 0.9},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
@@ -120,10 +122,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        Humanstand3dEnv env(device);
+        LunarLanderEnv env(device);
         
         // Mode selection - 0: train, 1: eval, 2: animate
-        int mode = 0; // 0=train, 1=eval, 2=animate
+        int mode = 1; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode
         
         switch (mode) {

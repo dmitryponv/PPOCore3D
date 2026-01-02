@@ -28,6 +28,7 @@ if (MSVC)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /ZI")
 endif()
 
+
 #############################################
 ############## SOURCE FILES #################
 #############################################
@@ -49,11 +50,18 @@ add_executable(PPOCore3D WIN32 src/main.cpp src/ppo.cpp ${RobotSimulator_SRCS})
 set_property(TARGET PPOCore3D PROPERTY CXX_STANDARD 17)
 target_link_libraries(PPOCore3D "${TORCH_LIBRARIES}")
 
+
+if(MSVC)
+    # Force the linker to ignore multiple definitions (use with caution)
+    set_target_properties(PPOCore3D PROPERTIES LINK_FLAGS "/FORCE:MULTIPLE")
+endif()
+
 #############################################
 ############## INCLUDE PATHS ################
 #############################################
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/raylib
     ${CMAKE_CURRENT_SOURCE_DIR}/include/minitaur
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet
     ${CMAKE_CURRENT_SOURCE_DIR}/include/bullet/SharedMemory
@@ -99,6 +107,7 @@ target_link_directories(PPOCore3D
 ############## BULLET LIBS ##################
 #############################################
 set(BULLET_LIBS_DEBUG
+    raylib
     BulletRobotics_DEBUG
     BulletExampleBrowserLib_DEBUG
     BulletFileLoader_DEBUG
@@ -116,6 +125,7 @@ set(BULLET_LIBS_DEBUG
 )
 
 set(BULLET_LIBS_RELEASE
+    raylib
     BulletRobotics
     BulletExampleBrowserLib
     BulletFileLoader
@@ -137,6 +147,10 @@ target_link_libraries(PPOCore3D
     $<$<CONFIG:Release>:${BULLET_LIBS_RELEASE}>
     ws2_32
     opengl32
+    gdi32
+    winmm
+    shell32
+    user32
 )
 
 #############################################
