@@ -198,11 +198,6 @@ void PPO::_log_train() {
 		logger["actor_loss"] = torch::Tensor();
 		logger["critic_loss"] = torch::Tensor();
 
-		if (avg_ep_rews > -5.0f) {
-			std::cout << "PAUSED: Average episodic return is " << avg_ep_rews << " (greater than -5)" << std::endl;
-			std::cout << "Press Enter to continue..." << std::endl;
-		}
-
 		std::vector<float> y1 = { 10.0f, 12.5f, 15.0f };
 		graph_manager.Graph("Rewards", avg_ep_rews);
 	}

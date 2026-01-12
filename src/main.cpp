@@ -42,7 +42,7 @@ void train(
 ) {
     std::cout << "Training" << std::endl;
 
-    PPO model(env, hyperparameters, device, graph_manager, actor_model, critic_model);  // Construct policy with environment and hyperparameters
+    PPO2 model(env, hyperparameters, device, graph_manager, actor_model, critic_model);  // Construct policy with environment and hyperparameters
 
     // Train PPO model for a large number of timesteps
     model.learn(2000000000);
@@ -51,7 +51,7 @@ void train(
 void eval(Env& env, torch::Device& device, const std::string& actor_model, float fixedTimeStepS = 0.0) {
     std::cout << "Testing " << actor_model << std::endl;
 
-    PPO_Eval model(env, device, actor_model);
+    PPO2_Eval model(env, device, actor_model);
 
     model.eval_policy(true, fixedTimeStepS);
 }

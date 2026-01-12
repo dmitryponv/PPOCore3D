@@ -2,150 +2,142 @@
 #include "RobotSimulator.h"
 #include "../env.h"
 
+namespace raylib {
+#define Rectangle _RayRectangle
+#define CloseWindow _RayCloseWindow
+#include "raylib.h"
+#undef Rectangle
+#undef CloseWindow
+}
+
 class LunarLanderEnv : public Env2D {
 public:
+    enum StateIdx {
+        X = 0, Y, VX, VY, THETA, THETA_DOT, T_X, T_Y,
+        AST1_X, AST1_Y, AST2_X, AST2_Y, AST3_X, AST3_Y,
+        COUNT = 14
+    };
+
     LunarLanderEnv(torch::Device& device)
-        : Env2D(device),
-          gravity(10.0f),
-          dt(0.05f),
-          main_engine_power(13.0f),
-          side_engine_power(1.0f) // Weaker than main engine
-    {
-        // Random number generation
+        : Env2D(device), gravity(10.0f), dt(0.05f),
+        main_engine_power(13.0f), side_engine_power(1.0f) {
         std::random_device rd;
         rng = std::mt19937(rd());
     }
 
     torch::Tensor reset() override {
-        std::uniform_real_distribution<float> dist_pos(-0.5f, 0.5f);
-        std::uniform_real_distribution<float> dist_vel(-1.0f, 1.0f);
-        std::uniform_real_distribution<float> dist_angle(-0.2f, 0.2f);
+        state.assign(StateIdx::COUNT, 0.0f);
+        std::uniform_real_distribution<float> d_pos(-12.0f, 12.0f);
+        std::uniform_real_distribution<float> d_y(5.0f, 20.0f);
 
-        // State: [x, y, vx, vy, theta, theta_dot]
-        // Start high up (y=10) with slight randomness
-        state = {
-            dist_pos(rng),       // x
-            10.0f + dist_pos(rng), // y
-            dist_vel(rng),       // vx
-            dist_vel(rng),       // vy
-            dist_angle(rng),     // theta
-            dist_angle(rng)      // theta_dot
-        };
-        
+        state[T_X] = d_pos(rng);
+        state[T_Y] = d_y(rng);
+        state[X] = d_pos(rng);
+        state[Y] = 25.0f;
+
+        target_vel_x = std::uniform_real_distribution<float>(-1.0f, 1.0f)(rng);
+        target_vel_y = std::uniform_real_distribution<float>(-0.5f, 0.5f)(rng);
+
+        for (int i = AST1_X; i < COUNT; i += 2) {
+            state[i] = d_pos(rng);
+            state[i + 1] = d_y(rng);
+        }
+
         steps = 0;
+        last_shaping = calculate_shaping();
+        last_actions = { 0.0f, 0.0f };
         return get_observation();
     }
 
     std::tuple<torch::Tensor, float, bool, bool> step(const torch::Tensor& actions, int frame_index) override {
         steps++;
-        
-        // Actions: [0] = Vertical Thrust (Main), [1] = Horizontal Thrust (Side)
-        // Clamp actions to range [-1, 1] then scale to power
-        float act_main = std::clamp(actions[0].item<float>(), 0.0f, 1.0f); // Main engine usually 0 to 1
-        float act_side = std::clamp(actions[1].item<float>(), -1.0f, 1.0f); 
+        float act_m = std::clamp(actions[0].item<float>(), 0.0f, 1.0f);
+        float act_s = std::clamp(actions[1].item<float>(), -1.0f, 1.0f);
+        last_actions = { act_m, act_s };
 
-        float force_y = act_main * main_engine_power;
-        float force_x = act_side * side_engine_power;
+        state[T_X] += target_vel_x * dt;
+        state[T_Y] += target_vel_y * dt;
+        if (std::abs(state[T_X]) > 15.0f) target_vel_x *= -1.0f;
+        if (state[T_Y] < 2.0f || state[T_Y] > 20.0f) target_vel_y *= -1.0f;
 
-        float theta = state[4];
-        float theta_dot = state[5];
+        state[THETA_DOT] += (-act_s * side_engine_power * 0.25f) * dt;
+        state[THETA] += state[THETA_DOT] * dt;
+        float s = std::sin(state[THETA]), c = std::cos(state[THETA]);
+        float ax = (-act_m * main_engine_power * s + act_s * side_engine_power * c);
+        float ay = (act_m * main_engine_power * c + act_s * side_engine_power * s) - gravity;
 
-        // --- Physics Update ---
-        
-        // Rotation: Side thrusters apply torque (Force * distance_offset)
-        // Assuming COM is slightly offset from thruster line
-        float torque = -force_x * 0.5f; 
-        float moment_of_inertia = 2.0f; // Arbitrary mass/shape constant
-        float angular_acc = torque / moment_of_inertia;
-        
-        float new_theta_dot = theta_dot + angular_acc * dt;
-        float new_theta = theta + new_theta_dot * dt;
+        state[VX] += ax * dt; state[VY] += ay * dt;
+        state[X] += state[VX] * dt; state[Y] += state[VY] * dt;
 
-        // Linear Forces transformed to Global Frame
-        // Sin/Cos for rotation transformation
-        float s = std::sin(theta);
-        float c = std::cos(theta);
+        float cur_shaping = calculate_shaping();
+        float reward = (last_shaping - cur_shaping) - 0.01f;
+        last_shaping = cur_shaping;
 
-        // Force vector in global frame:
-        // F_global_x = -F_local_y * sin(theta) + F_local_x * cos(theta)
-        // F_global_y =  F_local_y * cos(theta) + F_local_x * sin(theta)
-        float accel_x = (-force_y * s + force_x * c); // Mass = 1.0 assumed
-        float accel_y = (force_y * c + force_x * s) - gravity;
-
-        float new_vx = state[2] + accel_x * dt;
-        float new_vy = state[3] + accel_y * dt;
-        float new_x = state[0] + new_vx * dt;
-        float new_y = state[1] + new_vy * dt;
-
-        state = { new_x, new_y, new_vx, new_vy, new_theta, new_theta_dot };
-
-        // --- Reward & Termination ---
         bool done = false;
-        float reward = 0.0f;
-
-        // Cost for using fuel
-        reward -= 0.1f * std::abs(act_main); 
-        reward -= 0.03f * std::abs(act_side);
-
-        // Distance shaping reward
-        float dist = std::sqrt(state[0]*state[0] + state[1]*state[1]);
-        float vel_penalty = std::sqrt(state[2]*state[2] + state[3]*state[3]);
-        float angle_penalty = std::abs(state[4]);
-        
-        // Heuristic reward per step
-        reward += (last_shaping - (100.0f * dist + 100.0f * vel_penalty + 100.0f * angle_penalty));
-        last_shaping = 100.0f * dist + 100.0f * vel_penalty + 100.0f * angle_penalty;
-
-        // Terminal conditions
-        if (state[1] <= 0.0f) { // Ground contact
-            done = true;
-            bool upright = std::abs(state[4]) < 0.2f;
-            bool slow = std::abs(state[3]) < 2.0f; // Landing speed
-            
-            if (upright && slow) reward += 100.0f; // Successful land
-            else reward -= 100.0f; // Crash
-        } else if (std::abs(state[0]) > 10.0f || state[1] > 20.0f) {
-            done = true;
-            reward -= 100.0f; // Out of bounds
+        for (int i = AST1_X; i < COUNT; i += 2) {
+            float adist = std::sqrt(std::pow(state[X] - state[i], 2) + std::pow(state[Y] - state[i + 1], 2));
+            if (adist < 1.2f) { reward -= 200.0f; done = true; }
         }
-        
-        if (steps > 1000) done = true;
 
+        float dist_t = std::sqrt(std::pow(state[X] - state[T_X], 2) + std::pow(state[Y] - state[T_Y], 2));
+        if (dist_t < 1.0f) {
+            done = true;
+            reward += (std::sqrt(state[VX] * state[VX] + state[VY] * state[VY]) < 2.0f) ? 300.0f : -50.0f;
+        }
+        else if (state[Y] <= 0.0f || std::abs(state[X]) > 20.0f || state[Y] > 30.0f) {
+            done = true; reward -= 150.0f;
+        }
+
+        if (steps > 800) done = true;
         return { get_observation(), reward, done, false };
     }
 
     void render() override {
-        if (!state.empty()) {
-            std::cout << "Lander [x,y]: " << state[0] << "," << state[1] 
-                      << " Angle: " << state[4] << "\n";
+        if (state.empty()) return;
+        raylib::BeginDrawing();
+        raylib::ClearBackground(raylib::BLACK);
+        float sc = 25.0f;
+        int cx = screenWidth / 2, cy = screenHeight - 50;
+        raylib::Vector2 pos = { cx + state[X] * sc, cy - state[Y] * sc };
+
+        // Draw Asteroids as Random Polygons
+        for (int i = AST1_X; i < COUNT; i += 2) {
+            raylib::Vector2 astPos = { cx + state[i] * sc, cy - state[i + 1] * sc };
+            raylib::DrawPoly(astPos, (i % 3) + 5, 18.0f, (float)(i * 10), raylib::DARKGRAY);
+            raylib::DrawPolyLinesEx(astPos, (i % 3) + 5, 18.0f, (float)(i * 10), 2.0f, raylib::BROWN);
         }
-        Env2D::render();
+
+        // Draw Target as a Flag
+        float tx = cx + state[T_X] * sc, ty = cy - state[T_Y] * sc;
+        raylib::DrawLineEx({ tx, ty }, { tx, ty - 40 }, 3.0f, raylib::RAYWHITE);
+        raylib::DrawTriangle({ tx, ty - 40 }, { tx, ty - 20 }, { tx + 25, ty - 30 }, raylib::RED);
+
+        // Forces
+        if (last_actions[0] > 0.1f) {
+            raylib::Vector2 fEnd = { pos.x + std::sin(state[THETA]) * 40, pos.y + std::cos(state[THETA]) * 40 };
+            raylib::DrawLineEx(pos, fEnd, 4.0f, raylib::ORANGE);
+        }
+
+        // Lander
+        raylib::DrawRectanglePro({ pos.x, pos.y, 22, 28 }, { 11, 14 }, state[THETA] * 57.3f, raylib::LIGHTGRAY);
+        raylib::DrawLine(0, cy, screenWidth, cy, raylib::GREEN);
+        raylib::EndDrawing();
     }
 
-    // Required overrides
-    void animate() override {}
-    void EnableManipulator() override {}
-
-    int observation_space() const override { return 8; } // x, y, vx, vy, theta, w, 2 dummy legs
-    int action_space() const override { return 2; } // Main Engine, Side Engine
+    int observation_space() const override { return StateIdx::COUNT; }
+    int action_space() const override { return 2; }
 
 private:
-    float gravity, dt;
-    float main_engine_power, side_engine_power;
-    std::vector<float> state;
-    float last_shaping = 0.0f;
-    int steps = 0;
-
+    float gravity, dt, main_engine_power, side_engine_power, last_shaping, target_vel_x, target_vel_y;
+    std::vector<float> state, last_actions;
+    int steps;
     std::mt19937 rng;
 
-    torch::Tensor get_observation() override {
-        // Return 8 state vars to match standard envs usually
-        // [x, y, vx, vy, theta, theta_dot, left_leg_gnd, right_leg_gnd]
-        return torch::tensor({
-            state[0], state[1], 
-            state[2], state[3], 
-            state[4], state[5], 
-            0.0f, 0.0f // Dummy leg contact sensors
-        }).to(mDevice);
+    float calculate_shaping() {
+        float d = std::sqrt(std::pow(state[X] - state[T_X], 2) + std::pow(state[Y] - state[T_Y], 2));
+        float v = std::sqrt(state[VX] * state[VX] + state[VY] * state[VY]);
+        return (30.0f * d) + (10.0f * v) + (20.0f * std::abs(state[THETA]));
     }
+
+    torch::Tensor get_observation() override { return torch::tensor(state).to(mDevice); }
 };
