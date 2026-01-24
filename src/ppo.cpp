@@ -83,7 +83,7 @@ void PPO::_init_hyperparameters(const unordered_map<string, float>& hyperparamet
 		lr = 0.005;
 		gamma = 0.95;
 		clip = 0.2;
-		render = false;
+		render = true;
 		render_every_i = 10;
 		save_freq = 10;
 		seed = nullopt;
@@ -396,6 +396,10 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<in
 					frame_index = 0; // Reset frame index for new episode
 				}
 				frame_index++; // Increment frame index each step
+
+				if (render && t < max_timesteps_per_episode && t_so_far > 1000000) {
+					env.render();
+				}
 			}
 		}
 
@@ -423,20 +427,19 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<in
 PPO_Eval::PPO_Eval(Env& env, torch::Device& device, string actor_model)
 	: env(env), device(device) {
 	try {
-		if (actor_model.empty()) {
-			cerr << "No actor model file. Exiting." << endl;
-			exit(0);
-		}
-
 		obs_dim = env.observation_space();
 		act_dim = env.action_space();
 
 		actor = FeedForwardNN(obs_dim, act_dim, device);
-		torch::load(actor, actor_model);
 
 		float variance = 0.5f;
 		float std_value = std::sqrt(variance);
 		std_dev = torch::full({ act_dim }, std_value).to(device);
+
+		if (actor_model.empty())
+			zero_action = true;
+		else
+			torch::load(actor, actor_model);
 	}
 	catch (const std::exception& e) {
 		std::cerr << "Exception in PPO_Eval constructor: " << e.what() << std::endl;
@@ -457,6 +460,10 @@ void PPO_Eval::eval_policy(bool render, float fixedTimeStepS) {
 
 			while (!done) {
 				auto [action_tensor, log_prob] = get_action(obs_tensor);
+
+				if (zero_action)
+					action_tensor.zero_();
+
 				// Wrap single action in a vector for batchi_step or use step with single action
 				auto step_results = env.step({ action_tensor }, frame_index);
 				// We expect one result since we passed one action

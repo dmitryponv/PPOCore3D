@@ -131,4 +131,6 @@ private:
     int obs_dim;
     int act_dim;
     torch::Tensor std_dev;
+
+    bool zero_action = false;
 };

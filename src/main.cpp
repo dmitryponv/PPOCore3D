@@ -30,6 +30,8 @@
 #include "envs/BasketballEnv.h"
 #include "envs/Basketball3dEnv.h"
 #include "envs/LunarLanderEnv.h"
+#include "envs/DoublePendulumEnv.h"
+#include "envs/TriplePendulumEnv.h"
 
 
 void train(
@@ -42,7 +44,7 @@ void train(
 ) {
     std::cout << "Training" << std::endl;
 
-    PPO2 model(env, hyperparameters, device, graph_manager, actor_model, critic_model);  // Construct policy with environment and hyperparameters
+    PPO model(env, hyperparameters, device, graph_manager, actor_model, critic_model);  // Construct policy with environment and hyperparameters
 
     // Train PPO model for a large number of timesteps
     model.learn(2000000000);
@@ -51,7 +53,7 @@ void train(
 void eval(Env& env, torch::Device& device, const std::string& actor_model, float fixedTimeStepS = 0.0) {
     std::cout << "Testing " << actor_model << std::endl;
 
-    PPO2_Eval model(env, device, actor_model);
+    PPO_Eval model(env, device, actor_model);
 
     model.eval_policy(true, fixedTimeStepS);
 }
@@ -122,26 +124,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     try {
-        LunarLanderEnv env(device);
+        DoublePendulumEnv env(device);
         
         // Mode selection - 0: train, 1: eval, 2: animate
-        int mode = 1; // 0=train, 1=eval, 2=animate
+        int mode = 0; // 0=train, 1=eval, 2=test no actions, 3=animate
         int anim_skip_steps = 1; // For animate mode
-        
+
+        float fixedTimeStepS = 1. / 5000.;
         switch (mode) {
             case 0: // train
                 //train(env, hyperparameters, device, graph_manager, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
                 train(env, hyperparameters, device, graph_manager, "", "");
                 break;
-            case 2: // animate
+            case 2: //test
+                eval(env, device, "", fixedTimeStepS);
+                break;
+            case 3: // animate
                 animate(env, anim_skip_steps);
                 break;
             case 1: // eval
-            default:
-                {
-                    float fixedTimeStepS = 1. / 5000.;
-                    eval(env, device, "./models/ppo_actor.pt", fixedTimeStepS);
-                }
+            default:                
+                eval(env, device, "./models/ppo_actor.pt", fixedTimeStepS);
                 break;
         }
     }

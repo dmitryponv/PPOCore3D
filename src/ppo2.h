@@ -7,6 +7,9 @@
 #include <cmath>
 #include <filesystem>
 #include <numeric>
+#include <iostream>
+#include <chrono>
+#include <thread>
 
 using VT = std::vector<torch::Tensor>;
 
@@ -62,8 +65,10 @@ public:
         int T = (int)hp.at("timesteps_per_batch");
         int epochs = (int)hp.at("n_updates_per_iteration");
         int action_dim = (int)env.action_space();
+        int save_freq = 100;// (int)hp.at("save_freq"); // Assumes save_freq is in hyperparameters
         torch::Tensor obs = env.reset().to(device);
         int global_step = 0;
+        int i_so_far = 0;
 
         while (global_step < total_timesteps) {
             VT b_states, b_actions, b_logprobs, b_rewards, b_dones, b_values;
@@ -93,7 +98,6 @@ public:
                 if (d) obs = env.reset().to(device);
             }
 
-            // Record Average Reward for this batch
             graph_manager.Graph("Rewards", iteration_reward / T);
 
             torch::Tensor next_v;
@@ -112,6 +116,17 @@ public:
             adv_f = (adv_f - adv_f.mean()) / (adv_f.std() + 1e-8);
 
             update_network(s_f, a_f, lp_f, ret_f, adv_f, epochs, hp.at("clip"));
+
+            // --- SAVE MODELS ---
+            i_so_far++;
+            if (i_so_far % save_freq == 0) {
+                if (!std::filesystem::exists("./models")) {
+                    std::filesystem::create_directories("./models");
+                }
+                std::cout << "Saving training model as /models/ppo_actor.pt" << std::endl;
+                // Since ActorCritic is a shared model, we save the policy
+                torch::save(policy, "./models/ppo_actor.pt");
+            }
         }
     }
 
@@ -154,7 +169,6 @@ public:
         act_dim = (int)env.action_space();
         obs_dim = (int)env.observation_space();
 
-        // Initialize architecture
         actor = ActorCritic(act_dim);
 
         if (!actor_model.empty() && std::filesystem::exists(actor_model)) {
@@ -164,7 +178,6 @@ public:
             }
             catch (const c10::Error& e) {
                 std::cerr << "[ERROR] Failed to load model: " << e.msg() << std::endl;
-                std::cerr << "Ensure the .pt file matches the ActorCriticImpl structure." << std::endl;
             }
         }
 
@@ -174,7 +187,6 @@ public:
 
     void eval_policy(bool render = false, float fixedTimeStepS = 0.0) {
         int ep_num = 0;
-
         while (true) {
             torch::Tensor obs = env.reset().to(device);
             float ep_ret = 0;
@@ -183,20 +195,14 @@ public:
 
             while (!done) {
                 torch::NoGradGuard no_grad;
-
-                // Get deterministic action (mu)
                 auto [action, value] = get_action(obs);
-
                 auto step_result = env.step(action, ep_len);
-
                 obs = std::get<0>(step_result).to(device);
                 ep_ret += std::get<1>(step_result);
                 done = std::get<2>(step_result);
                 ep_len++;
 
-                if (render) {
-                    env.render();
-                }
+                if (render) env.render();
                 if (fixedTimeStepS > 0) {
                     std::this_thread::sleep_for(std::chrono::milliseconds((int)(fixedTimeStepS * 1000)));
                 }
@@ -207,17 +213,12 @@ public:
 
 private:
     std::pair<torch::Tensor, torch::Tensor> get_action(const torch::Tensor& obs_tensor) {
-        // obs_tensor: [14] -> forward expects [1, 14]
         auto [mu, sigma, val] = actor->forward(obs_tensor);
-
-        // Return mean (mu) for evaluation and the value estimate
         return { mu.detach().squeeze(0), val.detach().squeeze(0) };
     }
 
     void log_eval(float ep_len, float ep_ret, int ep_num) {
-        std::cout << ">>> Eval Episode: " << ep_num
-            << " | Reward: " << ep_ret
-            << " | Steps: " << ep_len << std::endl;
+        std::cout << ">>> Eval Episode: " << ep_num << " | Reward: " << ep_ret << " | Steps: " << ep_len << std::endl;
     }
 
     ActorCritic actor = nullptr;

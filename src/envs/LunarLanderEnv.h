@@ -27,19 +27,19 @@ public:
 
     torch::Tensor reset() override {
         state.assign(StateIdx::COUNT, 0.0f);
-        std::uniform_real_distribution<float> d_pos(-12.0f, 12.0f);
-        std::uniform_real_distribution<float> d_y(5.0f, 20.0f);
+        std::uniform_real_distribution<float> d_x(MIN_X, MAX_X);
+        std::uniform_real_distribution<float> d_y(MIN_Y, MAX_Y);
 
-        state[T_X] = d_pos(rng);
-        state[T_Y] = d_y(rng);
-        state[X] = d_pos(rng);
-        state[Y] = 25.0f;
+        state[X] = d_x(rng);
+        state[Y] = d_y(rng);
+        state[T_X] = d_x(rng);
+        state[T_Y] = std::uniform_real_distribution<float>(2.0f, 20.0f)(rng);
 
         target_vel_x = std::uniform_real_distribution<float>(-1.0f, 1.0f)(rng);
         target_vel_y = std::uniform_real_distribution<float>(-0.5f, 0.5f)(rng);
 
         for (int i = AST1_X; i < COUNT; i += 2) {
-            state[i] = d_pos(rng);
+            state[i] = d_x(rng);
             state[i + 1] = d_y(rng);
         }
 
@@ -57,8 +57,11 @@ public:
 
         state[T_X] += target_vel_x * dt;
         state[T_Y] += target_vel_y * dt;
-        if (std::abs(state[T_X]) > 15.0f) target_vel_x *= -1.0f;
-        if (state[T_Y] < 2.0f || state[T_Y] > 20.0f) target_vel_y *= -1.0f;
+
+        if (state[T_X] < MIN_X) { state[T_X] = MIN_X; target_vel_x *= -1.0f; }
+        if (state[T_X] > MAX_X) { state[T_X] = MAX_X; target_vel_x *= -1.0f; }
+        if (state[T_Y] < 2.0f)  { state[T_Y] = 2.0f;  target_vel_y *= -1.0f; }
+        if (state[T_Y] > 25.0f) { state[T_Y] = 25.0f; target_vel_y *= -1.0f; }
 
         state[THETA_DOT] += (-act_s * side_engine_power * 0.25f) * dt;
         state[THETA] += state[THETA_DOT] * dt;
@@ -100,25 +103,21 @@ public:
         int cx = screenWidth / 2, cy = screenHeight - 50;
         raylib::Vector2 pos = { cx + state[X] * sc, cy - state[Y] * sc };
 
-        // Draw Asteroids as Random Polygons
         for (int i = AST1_X; i < COUNT; i += 2) {
             raylib::Vector2 astPos = { cx + state[i] * sc, cy - state[i + 1] * sc };
             raylib::DrawPoly(astPos, (i % 3) + 5, 18.0f, (float)(i * 10), raylib::DARKGRAY);
             raylib::DrawPolyLinesEx(astPos, (i % 3) + 5, 18.0f, (float)(i * 10), 2.0f, raylib::BROWN);
         }
 
-        // Draw Target as a Flag
         float tx = cx + state[T_X] * sc, ty = cy - state[T_Y] * sc;
         raylib::DrawLineEx({ tx, ty }, { tx, ty - 40 }, 3.0f, raylib::RAYWHITE);
         raylib::DrawTriangle({ tx, ty - 40 }, { tx, ty - 20 }, { tx + 25, ty - 30 }, raylib::RED);
 
-        // Forces
         if (last_actions[0] > 0.1f) {
             raylib::Vector2 fEnd = { pos.x + std::sin(state[THETA]) * 40, pos.y + std::cos(state[THETA]) * 40 };
             raylib::DrawLineEx(pos, fEnd, 4.0f, raylib::ORANGE);
         }
 
-        // Lander
         raylib::DrawRectanglePro({ pos.x, pos.y, 22, 28 }, { 11, 14 }, state[THETA] * 57.3f, raylib::LIGHTGRAY);
         raylib::DrawLine(0, cy, screenWidth, cy, raylib::GREEN);
         raylib::EndDrawing();
@@ -128,6 +127,11 @@ public:
     int action_space() const override { return 2; }
 
 private:
+    const float MIN_X = -18.0f;
+    const float MAX_X = 18.0f;
+    const float MIN_Y = 5.0f;
+    const float MAX_Y = 25.0f;
+
     float gravity, dt, main_engine_power, side_engine_power, last_shaping, target_vel_x, target_vel_y;
     std::vector<float> state, last_actions;
     int steps;
