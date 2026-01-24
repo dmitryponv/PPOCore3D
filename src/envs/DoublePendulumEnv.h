@@ -55,8 +55,8 @@ std::tuple<torch::Tensor, float, bool, bool> step(const torch::Tensor& actions, 
                        + v2 * v2 * L2 * M2 * cos(a1 - a2))) 
                       / den2;
 
-        d2th1 = std::clamp(d2th1, -100.0f, 100.0f);
-        d2th2 = std::clamp(d2th2, -100.0f, 100.0f);
+        d2th1 = std::clamp(d2th1, -10.0f, 10.0f);
+        d2th2 = std::clamp(d2th2, -10.0f, 10.0f);
 
 
         // Semi-implicit Euler
@@ -65,7 +65,7 @@ std::tuple<torch::Tensor, float, bool, bool> step(const torch::Tensor& actions, 
         state[TH1] += state[DTH1] * dt;
         state[TH2] += state[DTH2] * dt;
 
-        float reward = -cos(state[TH1]) - cos(state[TH2]) - (0.01f * tau * tau) - (0.00001f * d2th1 * d2th2 * d2th1 * d2th2);
+        float reward = -cos(state[TH1]) - cos(state[TH2]) - (0.01f * tau * tau) - (0.001f * d2th1 * d2th2 * d2th1 * d2th2);
         bool done = steps >= 1000;
 
         return { get_observation(), reward, done, false };

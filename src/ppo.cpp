@@ -83,7 +83,6 @@ void PPO::_init_hyperparameters(const unordered_map<string, float>& hyperparamet
 		lr = 0.005;
 		gamma = 0.95;
 		clip = 0.2;
-		render = true;
 		render_every_i = 10;
 		save_freq = 10;
 		seed = nullopt;
@@ -397,7 +396,7 @@ tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, std::vector<in
 				}
 				frame_index++; // Increment frame index each step
 
-				if (render && t < max_timesteps_per_episode && t_so_far > 1000000) {
+				if (GetAsyncKeyState('R') & 0x8000) {
 					env.render();
 				}
 			}
@@ -436,9 +435,7 @@ PPO_Eval::PPO_Eval(Env& env, torch::Device& device, string actor_model)
 		float std_value = std::sqrt(variance);
 		std_dev = torch::full({ act_dim }, std_value).to(device);
 
-		if (actor_model.empty())
-			zero_action = true;
-		else
+		if (!actor_model.empty())
 			torch::load(actor, actor_model);
 	}
 	catch (const std::exception& e) {
@@ -460,9 +457,6 @@ void PPO_Eval::eval_policy(bool render, float fixedTimeStepS) {
 
 			while (!done) {
 				auto [action_tensor, log_prob] = get_action(obs_tensor);
-
-				if (zero_action)
-					action_tensor.zero_();
 
 				// Wrap single action in a vector for batchi_step or use step with single action
 				auto step_results = env.step({ action_tensor }, frame_index);

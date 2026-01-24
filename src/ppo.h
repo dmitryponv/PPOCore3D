@@ -107,7 +107,6 @@ private:
     float clip;
 
     // Miscellaneous parameters
-    bool render;
     int render_every_i;
     int save_freq;
     std::optional<int> seed;
@@ -131,6 +130,4 @@ private:
     int obs_dim;
     int act_dim;
     torch::Tensor std_dev;
-
-    bool zero_action = false;
 };

@@ -126,8 +126,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     try {
         DoublePendulumEnv env(device);
         
-        // Mode selection - 0: train, 1: eval, 2: animate
-        int mode = 0; // 0=train, 1=eval, 2=test no actions, 3=animate
+        int mode = 0; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode
 
         float fixedTimeStepS = 1. / 5000.;
@@ -136,10 +135,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 //train(env, hyperparameters, device, graph_manager, "./models/ppo_actor.pt", "./models/ppo_critic.pt");
                 train(env, hyperparameters, device, graph_manager, "", "");
                 break;
-            case 2: //test
-                eval(env, device, "", fixedTimeStepS);
-                break;
-            case 3: // animate
+            case 2: // animate
                 animate(env, anim_skip_steps);
                 break;
             case 1: // eval
