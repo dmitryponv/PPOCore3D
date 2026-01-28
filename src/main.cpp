@@ -1,4 +1,16 @@
-﻿#define WIN32_LEAN_AND_MEAN
+﻿#include "envs/AgentTarget3dEnv.h"
+#include "envs/PendulumEnv.h"
+#include "envs/Pendulum3dEnv.h"
+#include "envs/Robot3dEnv.h"
+#include "envs/Humanoid3dEnv.h"
+#include "envs/HumanStand3dEnv.h"
+#include "envs/BasketballEnv.h"
+#include "envs/Basketball3dEnv.h"
+#include "envs/LunarLanderEnv.h"
+//#include "envs/DoublePendulumEnv.h"
+//#include "envs/TriplePendulumEnv.h"
+
+#define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 
@@ -23,17 +35,7 @@
 //#include "NEAT.h"
 #include "PPO2.h"
 
-#include "envs/AgentTarget3dEnv.h"
-#include "envs/PendulumEnv.h"
-#include "envs/Pendulum3dEnv.h"
-#include "envs/Robot3dEnv.h"
-#include "envs/Humanoid3dEnv.h"
-#include "envs/HumanStand3dEnv.h"
-#include "envs/BasketballEnv.h"
-#include "envs/Basketball3dEnv.h"
-#include "envs/LunarLanderEnv.h"
-#include "envs/DoublePendulumEnv.h"
-#include "envs/TriplePendulumEnv.h"
+
 
 
 void train(
@@ -85,8 +87,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     graph_manager.Init();
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
-        {"timesteps_per_batch", 50000},
-        {"max_timesteps_per_episode", 25000},
+        {"timesteps_per_batch", 5000},
+        {"max_timesteps_per_episode", 2500},
         {"gamma", 0.9},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
@@ -128,7 +130,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 #endif
 
     try {
-        DoublePendulumEnv env(device);
+        LunarLanderEnv env(device);
         
         int mode = 0; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode

@@ -87,6 +87,21 @@
 
 #include <stdarg.h>     // Required for: va_list - Only used by TraceLogCallback
 
+#if defined(_WIN32)
+#define VC_EXTRALEAN
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef CloseWindow
+#undef ShowCursor
+#undef LoadImage
+#undef DrawText
+#undef DrawTextEx
+#undef Rectangle
+#undef PlaySound
+#define CloseWindow WindowsCloseWindow
+#define ShowCursor WindowsShowCursor
+#endif
+
 #define RAYLIB_VERSION_MAJOR 5
 #define RAYLIB_VERSION_MINOR 5
 #define RAYLIB_VERSION_PATCH 0

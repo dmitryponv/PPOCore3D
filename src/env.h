@@ -54,7 +54,7 @@ public:
 
     ~Env2D() {
         // De-Initialization
-        raylib::CloseWindow();
+        //raylib::CloseWindow();
     }
 
     torch::Tensor reset() override {
