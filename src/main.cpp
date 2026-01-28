@@ -4,7 +4,9 @@
 
 #include <torch/torch.h>
 #include <iostream>
+#ifdef CUDA
 #include <cuda_runtime.h>
+#endif
 #include <random>
 #include <filesystem>
 #include <fstream>
@@ -18,7 +20,7 @@
 
 #include "PPO.h"
 #include "DQN.h"
-#include "NEAT.h"
+//#include "NEAT.h"
 #include "PPO2.h"
 
 #include "envs/AgentTarget3dEnv.h"
@@ -96,6 +98,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     torch::Device device = torch::Device(torch::kCPU);
 
+#ifdef CUDA
     if (torch::cuda::is_available()) {
         std::cout << "CUDA is available. GPU will be used.\n";
         int deviceCount = 0;
@@ -122,6 +125,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     else {
         std::cout << "CUDA is NOT available. CPU will be used.\n";
     }
+#endif
 
     try {
         DoublePendulumEnv env(device);

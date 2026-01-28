@@ -2,7 +2,6 @@
 
 #include <torch/torch.h>
 #include <iostream>
-#include <cuda_runtime.h>
 #include <random>
 #include <filesystem>
 #include <fstream>

@@ -3,7 +3,6 @@
 #include <torch/torch.h>
 #include <ATen/Functions.h>
 #include <iostream>
-#include <cuda_runtime.h>
 #include <random>
 #include <filesystem>
 #include <fstream>
