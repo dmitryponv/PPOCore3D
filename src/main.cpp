@@ -83,8 +83,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     graph_manager.Init();
     // Hyperparameters for PPO (can be customized here)
     std::unordered_map<std::string, float> hyperparameters = {
-        {"timesteps_per_batch", 5000},
-        {"max_timesteps_per_episode", 2500},
+        {"timesteps_per_batch", 50000},
+        {"max_timesteps_per_episode", 25000},
         {"gamma", 0.9},
         {"n_updates_per_iteration", 10},
         {"lr", 3e-4},
