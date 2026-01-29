@@ -2,13 +2,6 @@
 #include "RobotSimulator.h"
 #include "../env.h"
 
-namespace raylib {
-#define Rectangle _RayRectangle
-#define CloseWindow _RayCloseWindow
-#include "raylib.h"
-#undef Rectangle
-#undef CloseWindow
-}
 
 class TriplePendulumEnv : public Env2D {
 public:

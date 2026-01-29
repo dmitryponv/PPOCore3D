@@ -7,8 +7,8 @@
 #include "envs/BasketballEnv.h"
 #include "envs/Basketball3dEnv.h"
 #include "envs/LunarLanderEnv.h"
-//#include "envs/DoublePendulumEnv.h"
-//#include "envs/TriplePendulumEnv.h"
+#include "envs/DoublePendulumEnv.h"
+#include "envs/TriplePendulumEnv.h"
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -132,7 +132,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     try {
         LunarLanderEnv env(device);
         
-        int mode = 0; // 0=train, 1=eval, 2=animate
+        int mode = 1; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode
 
         float fixedTimeStepS = 1. / 5000.;

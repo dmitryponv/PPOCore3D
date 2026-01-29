@@ -2,14 +2,6 @@
 #include "RobotSimulator.h"
 #include "../env.h"
 
-namespace raylib {
-#define Rectangle _RayRectangle
-#define CloseWindow _RayCloseWindow
-#include "raylib.h"
-#undef Rectangle
-#undef CloseWindow
-}
-
 class DoublePendulumEnv : public Env2D {
 public:
     enum StateIdx { TH1 = 0, TH2, DTH1, DTH2, COUNT = 4 };
