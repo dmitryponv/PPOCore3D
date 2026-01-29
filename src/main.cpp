@@ -1,4 +1,9 @@
-﻿#include "envs/AgentTarget3dEnv.h"
+﻿#define USECUDA
+#ifdef USECUDA
+#include <cuda_runtime.h>
+#endif
+
+#include "envs/AgentTarget3dEnv.h"
 #include "envs/PendulumEnv.h"
 #include "envs/Pendulum3dEnv.h"
 #include "envs/Robot3dEnv.h"
@@ -16,9 +21,6 @@
 
 #include <torch/torch.h>
 #include <iostream>
-#ifdef CUDA
-#include <cuda_runtime.h>
-#endif
 #include <random>
 #include <filesystem>
 #include <fstream>
@@ -100,7 +102,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     torch::Device device = torch::Device(torch::kCPU);
 
-#ifdef CUDA
+#ifdef USECUDA
     if (torch::cuda::is_available()) {
         std::cout << "CUDA is available. GPU will be used.\n";
         int deviceCount = 0;
@@ -132,7 +134,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     try {
         LunarLanderEnv env(device);
         
-        int mode = 1; // 0=train, 1=eval, 2=animate
+        int mode = 0; // 0=train, 1=eval, 2=animate
         int anim_skip_steps = 1; // For animate mode
 
         float fixedTimeStepS = 1. / 5000.;
